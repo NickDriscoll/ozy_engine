@@ -9,7 +9,7 @@ use image::DynamicImage;
 use crate::structs::*;
 use crate::routines::*;
 
-const INFO_LOG_SIZE: usize = 2048;
+const INFO_LOG_SIZE: usize = 2048 * 2;
 
 pub unsafe fn compile_shader(shadertype: GLenum, source: &str) -> GLuint {
 	let shader = gl::CreateShader(shadertype);
@@ -44,10 +44,9 @@ pub unsafe fn compile_shader_from_file(shadertype: GLenum, path: &str) -> GLuint
 	compile_shader(shadertype, &source)
 }
 
-const SHADER_PATH: &str = "shaders";
 pub unsafe fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> GLuint {
-	let vertexshader = compile_shader_from_file(gl::VERTEX_SHADER, &format!("{}/vertex/{}", SHADER_PATH, vertex_name));
-	let fragmentshader = compile_shader_from_file(gl::FRAGMENT_SHADER, &format!("{}/fragment/{}", SHADER_PATH, fragment_name));
+	let vertexshader = compile_shader_from_file(gl::VERTEX_SHADER, vertex_name);
+	let fragmentshader = compile_shader_from_file(gl::FRAGMENT_SHADER, fragment_name);
 
 	//Link shaders
 	let shader_progam = gl::CreateProgram();
@@ -169,10 +168,24 @@ pub fn image_data_from_path(path: &str) -> ImageData {
 			}
 		}
 		Ok(_) => {
-			panic!("{:?} is of unsupported image type", path);
+            println!("{} is of an unsupported image type", path);
+            ImageData {
+                data: vec![0u8],
+                width: 1,
+                height: 1,
+                format: gl::RGBA,
+                internal_format: gl::SRGB8_ALPHA8
+            }
 		}
 		Err(e) => {
-			panic!("Unable to open {}: {}", path, e);
+			println!("Unable to open {}: {}", path, e);
+            ImageData {
+                data: vec![0u8],
+                width: 1,
+                height: 1,
+                format: gl::RGBA,
+                internal_format: gl::SRGB8_ALPHA8
+            }
 		}
 	}
 }
