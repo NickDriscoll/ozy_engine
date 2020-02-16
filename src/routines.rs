@@ -7,3 +7,7 @@ pub fn flatten_glm(mat: &glm::TMat4<f32>) -> [f32; 16] {
 	}
 	result
 }
+
+pub fn uniform_scale(scale: f32) -> glm::TMat4<f32> {
+	glm::scaling(&glm::vec3(scale, scale, scale))
+}
