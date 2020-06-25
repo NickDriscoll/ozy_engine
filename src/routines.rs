@@ -192,73 +192,115 @@ pub fn load_wavefront_obj(path: &str) -> Option<MeshData> {
 //Loads a file of the proprietary format OzyMesh into a MeshData struct
 pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 	let mut int_buffer = [0x0; 4];				//Buffer for extracting the u32s from the file that represent the lengths of the data sections
-	let mut vertices = Vec::new();
-	let mut indices = Vec::new();
-	let mut names = Vec::new();
-	let mut geo_boundaries = vec![0];
-	let mut index_offset = 0;
 
+	//Open the file
 	let mut model_file = match File::open(path) {
 		Ok(file) => { file }
 		Err(e) => {
-			println!("Unable to load ozymesh file: {}", e);
+			println!("Unable to open ozymesh file: {}", e);
 			return None;
 		}
 	};
 
-	//The file can contain any number of pieces
-	//We just run until we hit EOF
-	while let Ok(_) = model_file.read_exact(&mut int_buffer) {
-		//Read the name
-		let name = {
-			let mut utf8_buf = vec![0; u32::from_le_bytes(int_buffer) as usize];
-			model_file.read_exact(&mut utf8_buf).unwrap();
+	//Read the number of meshes
+	let mesh_count = match model_file.read_exact(&mut int_buffer) {
+		Ok(_) => {
+			u32::from_le_bytes(int_buffer)
+		}
+		Err(e) => {
+			println!("Error reading mesh_count: {}", e);
+			return None;
+		}
+	};
 
-			match String::from_utf8(utf8_buf) {
-				Ok(st) => { st }
-				Err(e) => {
-					println!("Unable to read ozymesh name: {}", e);
-					return None;
-				}
+	//Read the geo boundaries
+	let geo_boundaries = {
+		let mut boundaries_buffer = vec![0; mesh_count as usize * mem::size_of::<u16>()];
+		if let Err(e) = model_file.read_exact(&mut boundaries_buffer) {
+			println!("Error reading geo_boundaries from file: {}", e);
+			return None;
+		}
+
+		let mut v = Vec::with_capacity(mesh_count as usize);
+		v.push(0);
+		for i in (0..boundaries_buffer.len()).step_by(mem::size_of::<u16>()) {
+			let b = [boundaries_buffer[i], boundaries_buffer[i + 1]];
+			v.push(u16::from_le_bytes(b) as i32);
+		}
+		v
+	};
+
+	//Read all of the names
+	let mut names = Vec::with_capacity(mesh_count as usize);
+	for _ in 0..mesh_count {
+		//Read the name's length
+		if let Err(e) = model_file.read_exact(&mut int_buffer) {
+			println!("Error read string length from file: {}", e);
+			return None;
+		}
+
+		//Read the contents of the string into a buffer
+		let mut utf8_buffer = vec![0; u32::from_le_bytes(int_buffer) as usize];
+		if let Err(e) = model_file.read_exact(&mut utf8_buffer) {
+			println!("Error reading string contents from file: {}", e);
+			return None;
+		}
+
+		//Turn buffer of utf-8 characters into String
+		match String::from_utf8(utf8_buffer) {
+			Ok(name) => { names.push(name); }
+			Err(e) => {
+				println!("Couldn't decode string: {}", e);
+				return None;
 			}
-		};
-		println!("ozymesh name: {}", name);
-		names.push(name);
-
-		//Read the vertices
-		let vert_count = {
-			model_file.read_exact(&mut int_buffer).unwrap();		//Read size of vertices in bytes
-			let vertex_count = u32::from_le_bytes(int_buffer) / 20;
-			let mut buffer = vec![0; u32::from_le_bytes(int_buffer) as usize];
-			model_file.read_exact(buffer.as_mut_slice()).unwrap();
-			println!("vert count: {}", vertex_count);
-
-			//Reconstitute the buffer of u8 into a buffer of f32
-			for i in (0..buffer.len()).step_by(mem::size_of::<f32>()) {
-				let f = [buffer[i], buffer[i + 1], buffer[i + 2], buffer[i + 3]];
-				vertices.push(f32::from_le_bytes(f));
-			}
-			vertex_count as u16
-		};
-
-		//Read the indices
-		{
-			model_file.read_exact(&mut int_buffer).unwrap();		//Read size of indices in bytes
-			let mut buffer = vec![0; u32::from_le_bytes(int_buffer) as usize];
-			model_file.read_exact(&mut buffer).unwrap();
-
-			let idx_count = u32::from_le_bytes(int_buffer) / 2;
-			println!("idx count: {}", idx_count);
-
-			//Reconstitute the buffer of u8 into a buffer of u16
-			for i in (0..buffer.len()).step_by(mem::size_of::<u16>()) {
-				let f = [buffer[i], buffer[i + 1]];
-				indices.push(u16::from_le_bytes(f) + index_offset);
-			}
-			index_offset += vert_count;
-			geo_boundaries.push(idx_count as i32);
 		}
 	}
+
+	let vertex_count = match model_file.read_exact(&mut int_buffer) {
+		Ok(_) => { u32::from_le_bytes(int_buffer) }
+		Err(e) => {
+			println!("Error reading vertex_count: {}", e);
+			return None;
+		}
+	};
+
+	let vertices = {
+		let mut bytes = vec![0; vertex_count as usize];
+		if let Err(e) = model_file.read_exact(bytes.as_mut_slice()) {
+			println!("Error reading vertex data from file: {}", e);
+			return None;
+		}
+
+		let mut v = Vec::with_capacity(mesh_count as usize);
+		for i in (0..bytes.len()).step_by(mem::size_of::<f32>()) {
+			let b = [bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]];
+			v.push(f32::from_le_bytes(b));
+		}
+		v
+	};
+
+	let index_count = match model_file.read_exact(&mut int_buffer) {
+		Ok(_) => { u32::from_le_bytes(int_buffer) }
+		Err(e) => {
+			println!("Error reading index_count: {}", e);
+			return None;
+		}
+	};
+
+	let indices = {
+		let mut bytes = vec![0; index_count as usize];
+		if let Err(e) = model_file.read_exact(bytes.as_mut_slice()) {
+			println!("Error reading index data from file: {}", e);
+			return None;
+		}
+
+		let mut v = Vec::with_capacity(mesh_count as usize);
+		for i in (0..bytes.len()).step_by(mem::size_of::<u16>()) {
+			let b = [bytes[i], bytes[i + 1]];
+			v.push(u16::from_le_bytes(b));
+		}
+		v
+	};
 
 	let vertex_array = VertexArray {
 		vertices,
