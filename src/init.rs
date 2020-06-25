@@ -8,7 +8,6 @@ pub fn glfw_window(window_size: (u32, u32), window_mode: WindowMode, major_versi
 		Err(e) => {	panic!("GLFW init error: {}", e); }
 	};
 
-	//Using OpenGL 3.3 core, but that could change
 	glfw.window_hint(glfw::WindowHint::ContextVersion(major_version, minor_version));
 	glfw.window_hint(glfw::WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
 
