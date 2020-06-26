@@ -22,7 +22,7 @@ pub struct MeshData {
 pub struct OzyMesh {
 	pub vertex_array: VertexArray,
 	pub names: Vec<String>,
-	pub geo_boundaries: Vec<GLsizei>,			//[0, a, b, c, ..., indices.length - 1]
+	pub geo_boundaries: Vec<u16>,			//[0, a, b, c, ..., indices.length - 1]
 }
 
 pub struct ImageData {
