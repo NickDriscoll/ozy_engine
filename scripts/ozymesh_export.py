@@ -61,7 +61,6 @@ class Exporter(bpy.types.Operator, ImportHelper):
         output.write(len_as_u32(names, 1))
         
         #Write the geo_boundaries array
-        print("geo_boundaries: " + str(geo_boundaries))
         for geo in geo_boundaries:
             output.write(bytearray(geo.to_bytes(2, "little")))
             

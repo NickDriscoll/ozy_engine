@@ -200,7 +200,7 @@ fn read_u32(file: &mut File, error_message: &str) -> Option<u32> {
 	}
 }
 
-fn read_u16_data(file: &mut File, count: usize) -> Option<Vec<u16>> {	
+fn read_u16_data(file: &mut File, count: usize) -> Option<Vec<u16>> {
 	let mut bytes = vec![0; count * mem::size_of::<u16>()];
 	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
 		println!("Error reading data from file: {}", e);
@@ -213,6 +213,35 @@ fn read_u16_data(file: &mut File, count: usize) -> Option<Vec<u16>> {
 		v.push(u16::from_le_bytes(b));
 	}
 	Some(v)
+}
+
+fn read_pascal_strings(file: &mut File, count: usize) -> Option<Vec<String>> {	
+	let mut int_buffer = [0; 4];
+	let mut names = Vec::with_capacity(count as usize);
+	for _ in 0..count {
+		//Read the name's length
+		if let Err(e) = file.read_exact(&mut int_buffer) {
+			println!("Error read string length from file: {}", e);
+			return None;
+		}
+
+		//Read the contents of the string into a buffer
+		let mut utf8_buffer = vec![0; u32::from_le_bytes(int_buffer) as usize];
+		if let Err(e) = file.read_exact(&mut utf8_buffer) {
+			println!("Error reading string contents from file: {}", e);
+			return None;
+		}
+
+		//Turn buffer of utf-8 characters into String
+		match String::from_utf8(utf8_buffer) {
+			Ok(name) => { names.push(name); }
+			Err(e) => {
+				println!("Couldn't decode string: {}", e);
+				return None;
+			}
+		}
+	}
+	Some(names)
 }
 
 //Loads a file of the proprietary format OzyMesh
@@ -246,30 +275,16 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 	};
 
 	//Read all of the names
-	let mut names = Vec::with_capacity(mesh_count as usize);
-	for _ in 0..mesh_count {
-		//Read the name's length
-		if let Err(e) = model_file.read_exact(&mut int_buffer) {
-			println!("Error read string length from file: {}", e);
-			return None;
-		}
+	let names = match read_pascal_strings(&mut model_file, mesh_count as usize) {
+		Some(v) => { v }
+		None => { return None; }
+	};
 
-		//Read the contents of the string into a buffer
-		let mut utf8_buffer = vec![0; u32::from_le_bytes(int_buffer) as usize];
-		if let Err(e) = model_file.read_exact(&mut utf8_buffer) {
-			println!("Error reading string contents from file: {}", e);
-			return None;
-		}
-
-		//Turn buffer of utf-8 characters into String
-		match String::from_utf8(utf8_buffer) {
-			Ok(name) => { names.push(name); }
-			Err(e) => {
-				println!("Couldn't decode string: {}", e);
-				return None;
-			}
-		}
-	}
+	//Read the material names
+	let texture_names = match read_pascal_strings(&mut model_file, mesh_count as usize) {
+		Some(v) => { v }
+		None => { return None; }
+	};
 
 	let vertices_size = match read_u32(&mut model_file, "Error reading vertex_count") {
 		Some(n) => { n }
