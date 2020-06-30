@@ -22,7 +22,10 @@ pub struct MeshData {
 pub struct OzyMesh {
 	pub vertex_array: VertexArray,
 	pub names: Vec<String>,
+	pub texture_names: Vec<String>,
 	pub geo_boundaries: Vec<u16>,			//[0, a, b, c, ..., indices.length - 1]
+	pub node_ids: Vec<u16>,
+	pub parent_ids: Vec<u16>
 }
 
 pub struct ImageData {

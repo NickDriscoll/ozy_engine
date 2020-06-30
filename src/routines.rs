@@ -259,9 +259,7 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 
 	//Read how many meshes are in the file
 	let mesh_count = match model_file.read_exact(&mut int_buffer) {
-		Ok(_) => {
-			u32::from_le_bytes(int_buffer)
-		}
+		Ok(_) => { u32::from_le_bytes(int_buffer) }
 		Err(e) => {
 			println!("Error reading mesh_count: {}", e);
 			return None;
@@ -270,6 +268,18 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 
 	//Read the geo boundaries
 	let geo_boundaries = match read_u16_data(&mut model_file, 1 + mesh_count as usize) {
+		Some(v) => { v }
+		None => { return None; }
+	};
+
+	//Read the node ids
+	let node_ids = match read_u16_data(&mut model_file, mesh_count as usize) {
+		Some(v) => { v }
+		None => { return None; }
+	};
+
+	//Read the node parent ids
+	let node_parent_ids = match read_u16_data(&mut model_file, mesh_count as usize) {
 		Some(v) => { v }
 		None => { return None; }
 	};
@@ -326,6 +336,9 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 	Some(OzyMesh {
 		vertex_array,
 		names,
-		geo_boundaries
+		texture_names,
+		geo_boundaries,
+		node_ids,
+		parent_ids: node_parent_ids
 	})
 }
