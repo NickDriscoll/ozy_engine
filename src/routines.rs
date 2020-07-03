@@ -259,7 +259,7 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 
 	//Read how many meshes are in the file
 	let mesh_count = match model_file.read_exact(&mut int_buffer) {
-		Ok(_) => { u32::from_le_bytes(int_buffer) }
+		Ok(_) => { u32::from_le_bytes(int_buffer) as usize }
 		Err(e) => {
 			println!("Error reading mesh_count: {}", e);
 			return None;
@@ -267,33 +267,60 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 	};
 
 	//Read the geo boundaries
-	let geo_boundaries = match read_u16_data(&mut model_file, 1 + mesh_count as usize) {
+	let geo_boundaries = match read_u16_data(&mut model_file, 1 + mesh_count) {
 		Some(v) => { v }
 		None => { return None; }
 	};
 
 	//Read the node ids
-	let node_ids = match read_u16_data(&mut model_file, mesh_count as usize) {
+	let node_ids = match read_u16_data(&mut model_file, mesh_count) {
 		Some(v) => { v }
 		None => { return None; }
 	};
 
 	//Read the node parent ids
-	let node_parent_ids = match read_u16_data(&mut model_file, mesh_count as usize) {
+	let node_parent_ids = match read_u16_data(&mut model_file, mesh_count) {
 		Some(v) => { v }
 		None => { return None; }
 	};
 
-	//Read all of the names
-	let names = match read_pascal_strings(&mut model_file, mesh_count as usize) {
+	//Read the individual mesh names
+	let names = match read_pascal_strings(&mut model_file, mesh_count) {
 		Some(v) => { v }
 		None => { return None; }
 	};
 
 	//Read the material names
-	let texture_names = match read_pascal_strings(&mut model_file, mesh_count as usize) {
+	let texture_names = match read_pascal_strings(&mut model_file, mesh_count) {
 		Some(v) => { v }
 		None => { return None; }
+	};
+
+	//Read the individual mesh origins
+	let origins = {
+		const VECTOR_COMPONENTS: usize = 3;			//Each origin is three floats (x, y, z) and I didn't like having a magic number
+		let mut bytes = vec![0; mesh_count as usize * VECTOR_COMPONENTS * mem::size_of::<f32>()];
+		if let Err(e) = model_file.read_exact(bytes.as_mut_slice()) {
+			println!("Error reading vertex data from file: {}", e);
+			return None;
+		}
+
+		let mut v = Vec::with_capacity(VECTOR_COMPONENTS * mesh_count);
+		let origin_size = mem::size_of::<f32>() * VECTOR_COMPONENTS;
+		for i in 0..mesh_count {
+			let mut components = [0.0; VECTOR_COMPONENTS];
+			for j in 0..VECTOR_COMPONENTS {
+				let component = f32::from_le_bytes([bytes[i * origin_size + j * mem::size_of::<f32>()],
+												bytes[i * origin_size + j * mem::size_of::<f32>() + 1],
+												bytes[i * origin_size + j * mem::size_of::<f32>() + 2],
+												bytes[i * origin_size + j * mem::size_of::<f32>() + 3]
+				]);
+				components[j] = component;
+			}
+			
+			v.push(glm::vec4(components[0], components[1], components[2], 1.0));
+		}
+		v
 	};
 
 	let vertices_size = match read_u32(&mut model_file, "Error reading vertex_count") {
@@ -317,12 +344,11 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 	};
 	
 	let index_count = match read_u32(&mut model_file, "Error reading index_count") {
-		Some(n) => { n / mem::size_of::<u16>() as u32 }
+		Some(n) => { (n / mem::size_of::<u16>() as u32) as usize }
 		None => { return None; }
 	};
-
 	
-	let indices = match read_u16_data(&mut model_file, index_count as usize) {
+	let indices = match read_u16_data(&mut model_file, index_count) {
 		Some(n) => { n }
 		None => { return None; }
 	};
@@ -339,6 +365,7 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 		texture_names,
 		geo_boundaries,
 		node_ids,
-		parent_ids: node_parent_ids
+		parent_ids: node_parent_ids,
+		origins
 	})
 }

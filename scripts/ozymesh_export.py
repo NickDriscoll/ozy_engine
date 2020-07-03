@@ -28,13 +28,17 @@ class Exporter(bpy.types.Operator, ImportHelper):
         index_buffer = []
         names = []
         texture_names = []
+        node_ids = []
+        parent_ids = []
         geo_boundaries = [0]
         current_index = 0
         
         #Collect relevant data about meshes
         #for mesh in [bpy.data.meshes['Turret'], bpy.data.meshes['Hull'], bpy.data.meshes['Tread0'], bpy.data.meshes['Tread1'], bpy.data.meshes['Barrel']]:
         for mesh in bpy.data.meshes:
-            world_matrix = bpy.data.objects[mesh.name].matrix_world
+            ob = bpy.data.objects[mesh.name]
+            
+            world_matrix = ob.matrix_world
             z_to_y = Matrix(((1.0, 0.0, 0.0, 0.0),
                              (0.0, 0.0, 1.0, 0.0),
                              (0.0, -1.0, 0.0, 0.0),
@@ -44,14 +48,30 @@ class Exporter(bpy.types.Operator, ImportHelper):
             uv_data = mesh.uv_layers[0].data
             
             names.append(mesh.name)
-            texture_names.append(bpy.data.objects[mesh.name].active_material.name)
+            texture_names.append(ob.active_material.name)
             
+            if 'node_id' not in ob:
+                print("%s does not have the custom property \"%s\" defined." % (mesh.name, 'node_id'))
+                return { "CANCELLED" }
+            node_ids.append(int(ob['node_id']))
+            
+            if 'parent_id' not in ob:
+                parent_ids.append(0)
+            else:
+                parent_ids.append(int(ob['parent_id']))
+            
+            vertex_elements = 0
             for face in mesh.polygons:
                 for i in face.loop_indices:
                     vert_index = mesh.loops[i].vertex_index
                     pos = z_to_y @ world_matrix @ mesh.vertices[vert_index].co #Transform into world space and switch y and z axes
                     uvs = uv_data[i].uv
+                    
+                    #Construct the potential vertex
                     potential_vertex = (pos.x, pos.y, pos.z, uvs.x, uvs.y)
+            
+                    #Compute size of a single vertex
+                    vertex_elements = len(potential_vertex)
                     
                     if potential_vertex in vertex_index_map:
                         index_buffer.append(vertex_index_map[potential_vertex])
@@ -67,25 +87,26 @@ class Exporter(bpy.types.Operator, ImportHelper):
         #Write the number of meshes
         output.write(len_as_u32(names, 1))
         
-        #Write the geo_boundaries array
-        for geo in geo_boundaries:
-            output.write(bytearray(geo.to_bytes(2, "little")))
+        #Write the geo_boundaries array, node_ids, and parent_ids
+        u16_buffers = [geo_boundaries, node_ids, parent_ids]
+        for buff in u16_buffers:
+            for element in buff:
+                output.write(bytearray(element.to_bytes(2, "little")))
             
-        #Write the names and texture_names as pascal-strings
+        #Write the names as pascal-strings
         write_pascal_strings(output, names)
         write_pascal_strings(output, texture_names)
             
         #Write the vertex data
-        output.write(len_as_u32(vertex_index_map, 20))		#Length of vertices block in bytes
+        output.write(len_as_u32(vertex_index_map, vertex_elements * 4))
         for vertex in list(vertex_index_map):
-            for i in range(0, 5):
+            for i in range(0, vertex_elements):
                 output.write(bytearray(struct.pack('f', vertex[i])))
                 
         #Write the index data
-        output.write(len_as_u32(index_buffer, 2))    
+        output.write(len_as_u32(index_buffer, 2))
         for index in index_buffer:
             output.write(index.to_bytes(2, "little"))
-        
             
         output.close()
         return {'FINISHED'}
