@@ -1,22 +1,12 @@
 use gl::types::*;
 use std::slice::{Iter, IterMut};
 use std::ops::{Index, IndexMut};
-use wavefront_obj::mtl;
 
 #[derive(Debug)]
 pub struct VertexArray {
 	pub vertices: Vec<f32>,
 	pub indices: Vec<u16>,
 	pub attribute_offsets: Vec<i32>
-}
-
-//The way MeshData works is that vertex_array can hold any number of meshes, and then
-//the names, geo_boundaries, and materials Vecs are all parallel
-pub struct MeshData {
-	pub vertex_array: VertexArray,
-	pub names: Vec<String>,
-	pub geo_boundaries: Vec<GLsizei>,			//[0, a, b, c, ..., indices.length - 1]
-	pub materials: Vec<mtl::Material>
 }
 
 pub struct OzyMesh {
@@ -38,6 +28,7 @@ pub struct ImageData {
 }
 
 //A wrapper for the useful Vec<Option<T>> pattern
+#[derive(Debug)]
 pub struct OptionVec<T> {
 	optionvec: Vec<Option<T>>
 }
@@ -117,7 +108,7 @@ impl<T> OptionVec<T> {
 		self.optionvec.iter()
 	}
 
-	pub fn _iter_mut(&mut self) -> IterMut<Option<T>> {
+	pub fn iter_mut(&mut self) -> IterMut<Option<T>> {
 		self.optionvec.iter_mut()
 	}
 }

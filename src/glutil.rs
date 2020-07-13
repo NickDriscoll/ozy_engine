@@ -9,8 +9,6 @@ use image::DynamicImage;
 use crate::structs::*;
 use crate::routines::*;
 
-const INFO_LOG_SIZE: usize = 2048 * 2;
-
 pub unsafe fn compile_shader(shadertype: GLenum, source: &str) -> GLuint {
 	let shader = gl::CreateShader(shadertype);
 	let cstr_vert = CString::new(source.as_bytes()).unwrap();
@@ -19,11 +17,12 @@ pub unsafe fn compile_shader(shadertype: GLenum, source: &str) -> GLuint {
 
 	//Check for errors
 	let mut success = gl::FALSE as GLint;
-	let mut infolog = Vec::with_capacity(INFO_LOG_SIZE);
-	infolog.set_len(INFO_LOG_SIZE - 1);
+	let mut log_size = 0;
 	gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
+	gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_size);
+	let mut infolog = Vec::with_capacity(log_size as usize);
 	if success != gl::TRUE as GLint {
-		gl::GetShaderInfoLog(shader, INFO_LOG_SIZE as i32, ptr::null_mut(), infolog.as_mut_ptr() as *mut GLchar);
+		gl::GetShaderInfoLog(shader, log_size, ptr::null_mut(), infolog.as_mut_ptr() as *mut GLchar);
 		shader_compilation_error(&infolog);
 	}
 	shader
@@ -56,10 +55,12 @@ pub unsafe fn compile_program_from_files(vertex_name: &str, fragment_name: &str)
 
 	//Check for errors
 	let mut success = gl::FALSE as GLint;
-	let mut infolog = Vec::with_capacity(INFO_LOG_SIZE);
+	let mut log_size = 0;
 	gl::GetProgramiv(shader_progam, gl::LINK_STATUS, &mut success);
+	gl::GetProgramiv(shader_progam, gl::INFO_LOG_LENGTH, &mut log_size);
+	let mut infolog = vec![0; log_size as usize];
 	if success != gl::TRUE as GLint {
-		gl::GetProgramInfoLog(shader_progam, INFO_LOG_SIZE as i32, ptr::null_mut(), infolog.as_mut_ptr() as *mut GLchar);
+		gl::GetProgramInfoLog(shader_progam, log_size, ptr::null_mut(), infolog.as_mut_ptr() as *mut GLchar);
 		shader_compilation_error(&infolog);
 	}
 
@@ -71,10 +72,7 @@ pub unsafe fn compile_program_from_files(vertex_name: &str, fragment_name: &str)
 pub fn shader_compilation_error(infolog: &[u8]) {
 	let error_message = match str::from_utf8(infolog) {
 		Ok(message) => { message }
-		Err(e) => {
-			let sized_log = &infolog[0..e.valid_up_to()];
-			str::from_utf8(&sized_log).unwrap()
-		}
+		Err(_) => { panic!("Error getting the shader compilation error. This statement should be unreachable."); }
 	};
 	panic!("\n--------SHADER COMPILATION ERROR--------\n{}", error_message);
 }
@@ -112,6 +110,7 @@ pub unsafe fn create_vertex_array_object(vertices: &[f32], indices: &[u16], attr
 				   &indices[0] as *const u16 as *const c_void,
 				   gl::STATIC_DRAW);
 
+	//Calculate the stride in bytes between individual vertices
 	let byte_stride = {
 		let mut sum = 0;
 		for stride in attribute_strides {
@@ -191,13 +190,17 @@ pub fn image_data_from_path(path: &str) -> ImageData {
 }
 
 pub unsafe fn load_texture_from_data(image_data: ImageData, parameters: &[(GLenum, GLenum)]) -> GLuint {
+	//Create texture
 	let mut tex = 0;
 	gl::GenTextures(1, &mut tex);
 	gl::BindTexture(gl::TEXTURE_2D, tex);
+
+	//Apply texture parameters
 	for param in parameters {
 		gl::TexParameteri(gl::TEXTURE_2D, param.0, param.1 as GLint);
 	}
 
+	//Upload texture data
 	gl::TexImage2D(gl::TEXTURE_2D,
 				   0,
 				   image_data.internal_format as i32,
@@ -207,7 +210,7 @@ pub unsafe fn load_texture_from_data(image_data: ImageData, parameters: &[(GLenu
 				   image_data.format,
 				   gl::UNSIGNED_BYTE,
 				   &image_data.data[0] as *const u8 as *const c_void);
-	gl::GenerateMipmap(gl::TEXTURE_2D);
+	gl::GenerateMipmap(gl::TEXTURE_2D);	//Generate mipmaps
 	tex
 }
 
@@ -217,4 +220,8 @@ pub unsafe fn bind_matrix4(program: GLuint, name: &str, matrix: &glm::TMat4<f32>
 
 pub unsafe fn bind_vector4(program: GLuint, name: &str, vector: &glm::TVec4<f32>) {
 	gl::Uniform4fv(uniform_location(program, name), 1, &[vector.x, vector.y, vector.z, vector.w] as *const GLfloat);
+}
+
+pub unsafe fn bind_byte(program: GLuint, name: &str, byte: GLint) {
+	gl::Uniform1i(uniform_location(program, name), byte);
 }
