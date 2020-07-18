@@ -37,20 +37,28 @@ class Exporter(bpy.types.Operator, ImportHelper):
         #Collect relevant data about meshes
         for ob in bpy.context.selected_objects:
             print("Serializing %s" % ob.name)
-            mesh = bpy.data.meshes[ob.name]
+            mesh = ob.data
             
-            world_matrix = ob.matrix_world
+            normal_matrix = ob.matrix_world.to_3x3()
+            normal_matrix.invert()
+            normal_matrix = normal_matrix.to_4x4()
+            normal_matrix.transpose()
             z_to_y = Matrix(((1.0, 0.0, 0.0, 0.0),
                              (0.0, 0.0, 1.0, 0.0),
                              (0.0, 1.0, 0.0, 0.0),
                              (0.0, 0.0, 0.0, 1.0)))
 
-            blender_to_game_world = z_to_y @ world_matrix
+            blender_to_game_world = z_to_y @ ob.matrix_world
+            normal_to_game_world = z_to_y @ normal_matrix
             
             #Assuming there's only one UV map
             uv_data = mesh.uv_layers[0].data
             
             names.append(mesh.name)
+            
+            if not ob.active_material:
+                print("%s does not have an active material." % mesh.name)
+                return { "CANCELLED" }                
             texture_names.append(ob.active_material.name)
             
             origin = blender_to_game_world @ Vector((0.0, 0.0, 0.0, 1.0))
@@ -66,7 +74,6 @@ class Exporter(bpy.types.Operator, ImportHelper):
             else:
                 parent_ids.append(int(ob['parent_id']))
             
-            vertex_size_bytes = 0
             ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
             for face in mesh.polygons:
                 for i in face.loop_indices:
@@ -74,14 +81,19 @@ class Exporter(bpy.types.Operator, ImportHelper):
                     pos = blender_to_game_world @ mesh.vertices[loop.vertex_index].co #Transform into world space and switch y and z axes
                     uvs = uv_data[i].uv
                     
-                    tangent = loop.tangent
-                    normal = loop.normal
-                    bitangent = loop.bitangent_sign * normal.cross(tangent)
+                    tangent = normal_to_game_world @ loop.tangent
+                    normal = normal_to_game_world @ loop.normal
+                    bitangent = normal_to_game_world @ loop.bitangent
+                    
+                    tangent.normalize()
+                    bitangent.normalize()
+                    normal.normalize()
                     
                     #Construct the potential vertex
                     potential_vertex = (pos.x, pos.y, pos.z,
                                         tangent.x, tangent.y, tangent.z,
                                         bitangent.x, bitangent.y, bitangent.z,
+                                        normal.x, normal.y, normal.z,
                                         uvs.x, uvs.y)
             
                     #Compute size of a single vertex

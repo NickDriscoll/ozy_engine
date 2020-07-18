@@ -4,16 +4,6 @@ use std::io::Read;
 use std::string::String;
 use crate::structs::*;
 
-pub fn flatten_glm(mat: &glm::TMat4<f32>) -> [f32; 16] {
-	let slice = glm::value_ptr(mat);
-
-	let mut result = [0.0; 16];
-	for i in 0..16 {
-		result[i] = slice[i];
-	}
-	result
-}
-
 pub fn uniform_scale(scale: f32) -> glm::TMat4<f32> {
 	glm::scaling(&glm::vec3(scale, scale, scale))
 }
@@ -75,24 +65,20 @@ fn read_pascal_strings(file: &mut File, count: usize) -> Option<Vec<String>> {
 
 //Loads a file of the proprietary format OzyMesh
 pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
-	let mut int_buffer = [0x0; 4];				//Buffer for extracting the u32s from the file that represent the lengths of the data sections
 
 	//Open the file
 	let mut model_file = match File::open(path) {
 		Ok(file) => { file }
 		Err(e) => {
-			println!("Unable to open ozymesh file: {}", e);
+			println!("Unable to open \"{}\": {}", path, e);
 			return None;
 		}
 	};
 
 	//Read how many meshes are in the file
-	let mesh_count = match model_file.read_exact(&mut int_buffer) {
-		Ok(_) => { u32::from_le_bytes(int_buffer) as usize }
-		Err(e) => {
-			println!("Error reading mesh_count: {}", e);
-			return None;
-		}
+	let mesh_count = match read_u32(&mut model_file, "Error reading mesh_count.") {
+		Some(count) => { count as usize }
+		None => { return None; }
 	};
 
 	//Read the geo boundaries

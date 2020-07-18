@@ -7,7 +7,6 @@ use std::{mem, process, ptr};
 use std::os::raw::c_void;
 use image::DynamicImage;
 use crate::structs::*;
-use crate::routines::*;
 
 pub unsafe fn compile_shader(shadertype: GLenum, source: &str) -> GLuint {
 	let shader = gl::CreateShader(shadertype);
@@ -215,7 +214,7 @@ pub unsafe fn load_texture_from_data(image_data: ImageData, parameters: &[(GLenu
 }
 
 pub unsafe fn bind_matrix4(program: GLuint, name: &str, matrix: &glm::TMat4<f32>) {
-	gl::UniformMatrix4fv(uniform_location(program, name), 1, gl::FALSE, &flatten_glm(matrix) as *const GLfloat);
+	gl::UniformMatrix4fv(uniform_location(program, name), 1, gl::FALSE, &glm::value_ptr(matrix)[0]);
 }
 
 pub unsafe fn bind_vector4(program: GLuint, name: &str, vector: &glm::TVec4<f32>) {
