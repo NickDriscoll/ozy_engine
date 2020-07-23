@@ -92,8 +92,11 @@ pub unsafe fn gl_gen_buffer() -> GLuint {
 pub unsafe fn create_vertex_array_object(vertices: &[f32], indices: &[u16], attribute_strides: &[i32]) -> GLuint {
 	let mut vao = 0;
 	gl::GenVertexArrays(1, &mut vao);
-	let vbo = gl_gen_buffer();
-	let ebo = gl_gen_buffer();
+	let (vbo, ebo) = {
+		let mut s = [0; 2];
+		gl::GenBuffers(2, &mut s[0]);
+		(s[0], s[1])
+	};
 
 	gl::BindVertexArray(vao);
 

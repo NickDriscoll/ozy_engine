@@ -30,24 +30,30 @@ pub struct ImageData {
 //A wrapper for the useful Vec<Option<T>> pattern
 #[derive(Debug)]
 pub struct OptionVec<T> {
-	optionvec: Vec<Option<T>>
+	optionvec: Vec<Option<T>>,
+	count: usize		//True number of active objects
 }
 
 impl<T> OptionVec<T> {
 	pub fn new() -> Self {
 		OptionVec {
-			optionvec: Vec::new()
+			optionvec: Vec::new(),
+			count: 0
 		}
 	}
 
 	pub fn with_capacity(size: usize) -> Self {
 		OptionVec {
-			optionvec: Vec::with_capacity(size)
+			optionvec: Vec::with_capacity(size),
+			count: 0
 		}
 	}
 
 	pub fn insert(&mut self, element: T) -> usize {
 		let mut index = None;
+
+		//Increment count
+		self.count += 1;
 
 		//Search for an empty space
 		for i in 0..self.optionvec.len() {
@@ -76,9 +82,9 @@ impl<T> OptionVec<T> {
 		}
 	}
 
-	pub fn len(&self) -> usize {
-		self.optionvec.len()
-	}
+	pub fn len(&self) -> usize { self.optionvec.len() }
+
+	pub fn count(&self) -> usize { self.count }
 
 	pub fn get_element(&mut self, index: Option<usize>) -> Option<&mut T> {	
 		match index {
