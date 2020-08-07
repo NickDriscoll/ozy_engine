@@ -229,6 +229,6 @@ pub unsafe fn bind_vector4(program: GLuint, name: &str, vector: &glm::TVec4<f32>
 	gl::Uniform4fv(uniform_location(program, name), 1, &[vector.x, vector.y, vector.z, vector.w] as *const GLfloat);
 }
 
-pub unsafe fn bind_byte(program: GLuint, name: &str, byte: GLint) {
-	gl::Uniform1i(uniform_location(program, name), byte);
+pub unsafe fn bind_int(program: GLuint, name: &str, number: GLint) {
+	gl::Uniform1i(uniform_location(program, name), number);
 }
