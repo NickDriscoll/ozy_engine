@@ -80,6 +80,7 @@ impl<T> OptionVec<T> {
 		for i in 0..self.optionvec.len() {
 			self.optionvec[i] = None;
 		}
+		self.count = 0;
 	}
 
 	pub fn len(&self) -> usize { self.optionvec.len() }
