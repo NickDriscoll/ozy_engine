@@ -1,6 +1,6 @@
 use gl::types::*;
 use std::slice::{Iter, IterMut};
-use std::ops::{Index, IndexMut};
+use std::ops::{Index};
 
 #[derive(Debug)]
 pub struct VertexArray {
@@ -92,13 +92,8 @@ impl<T> OptionVec<T> {
 
 	pub fn count(&self) -> usize { self.count }
 
-	pub fn get_element(&mut self, index: Option<usize>) -> Option<&mut T> {	
-		match index {
-			Some(i) => {
-				self[i].as_mut()
-			}
-			None => { None }
-		}	
+	pub fn get_mut_element(&mut self, index: usize) -> Option<&mut T> {
+		self.optionvec[index].as_mut()
 	}
 
 	pub fn two_mut_refs(&mut self, index1: usize, index2: usize) -> (&mut Option<T>, &mut Option<T>) {
@@ -130,11 +125,5 @@ impl<T> Index<usize> for OptionVec<T> {
 
 	fn index(&self, index: usize) -> &Self::Output {
 		&self.optionvec[index]
-	}
-}
-
-impl<T> IndexMut<usize> for OptionVec<T> {
-	fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-		&mut self.optionvec[index]
 	}
 }
