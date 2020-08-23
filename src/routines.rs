@@ -138,6 +138,7 @@ pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
 		v
 	};
 
+	//The length of the vertex data section of the file, in bytes
 	let vertices_size = match read_u32(&mut model_file, "Error reading vertex_count") {
 		Some(n) => { n }
 		None => { return None; }
