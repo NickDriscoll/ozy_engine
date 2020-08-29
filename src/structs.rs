@@ -77,8 +77,10 @@ impl<T> OptionVec<T> {
 	}
 
 	pub fn delete(&mut self, index: usize) {
-		self.count -= 1;
-		self.optionvec[index] = None;
+		if let Some(_) = self.optionvec[index] {
+			self.count -= 1;
+			self.optionvec[index] = None;
+		}
 	}
 
 	pub fn clear(&mut self) {
