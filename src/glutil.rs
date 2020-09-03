@@ -153,7 +153,7 @@ pub fn image_data_from_path(path: &str) -> ImageData {
 				width: width as GLint,
 				height: height as GLint,
 				format: gl::RGB,
-				internal_format: gl::SRGB
+				internal_format: gl::SRGB8
 			}
 		}
 		Ok(DynamicImage::ImageRgba8(im)) => {
