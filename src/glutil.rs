@@ -222,13 +222,16 @@ pub unsafe fn load_texture_from_data(image_data: ImageData, parameters: &[(GLenu
 }
 
 pub unsafe fn bind_matrix4(program: GLuint, name: &str, matrix: &glm::TMat4<f32>) {
+	gl::UseProgram(program);
 	gl::UniformMatrix4fv(uniform_location(program, name), 1, gl::FALSE, &glm::value_ptr(matrix)[0]);
 }
 
 pub unsafe fn bind_vector4(program: GLuint, name: &str, vector: &glm::TVec4<f32>) {
+	gl::UseProgram(program);
 	gl::Uniform4fv(uniform_location(program, name), 1, &[vector.x, vector.y, vector.z, vector.w] as *const GLfloat);
 }
 
 pub unsafe fn bind_int(program: GLuint, name: &str, number: GLint) {
+	gl::UseProgram(program);
 	gl::Uniform1i(uniform_location(program, name), number);
 }
