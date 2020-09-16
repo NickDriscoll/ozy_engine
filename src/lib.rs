@@ -4,3 +4,4 @@ pub mod init;
 pub mod structs;
 pub mod glutil;
 pub mod routines;
+pub mod prims;
