@@ -65,7 +65,6 @@ fn read_pascal_strings(file: &mut File, count: usize) -> Option<Vec<String>> {
 
 //Loads a file of the proprietary format OzyMesh
 pub fn load_ozymesh(path: &str) -> Option<OzyMesh> {
-
 	//Open the file
 	let mut model_file = match File::open(path) {
 		Ok(file) => { file }
