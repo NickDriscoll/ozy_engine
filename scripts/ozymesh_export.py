@@ -145,7 +145,6 @@ class Exporter(bpy.types.Operator, ImportHelper):
 def register():
     bpy.utils.register_class(Exporter)
 
-
 def unregister():
     bpy.utils.unregister_class(Exporter)
     
