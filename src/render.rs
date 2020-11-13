@@ -261,6 +261,51 @@ impl RenderTarget {
 		}
     }
 
+    pub unsafe fn new_shadow(size: (GLint, GLint)) -> Self {
+        let mut shadow_framebuffer = 0;
+		let mut shadow_texture = 0;
+
+		gl::GenFramebuffers(1, &mut shadow_framebuffer);
+		gl::GenTextures(1, &mut shadow_texture);
+
+		//Initialize the texture
+		gl::BindTexture(gl::TEXTURE_2D, shadow_texture);
+		gl::TexImage2D(
+			gl::TEXTURE_2D,
+			0,
+			gl::DEPTH_COMPONENT as GLint,
+			size.0,
+			size.1,
+			0,
+			gl::DEPTH_COMPONENT,
+			gl::FLOAT,
+			ptr::null()
+		);
+		glutil::apply_texture_parameters(&DEFAULT_TEX_PARAMS);
+
+		gl::BindFramebuffer(gl::FRAMEBUFFER, shadow_framebuffer);
+		gl::FramebufferTexture2D(
+			gl::FRAMEBUFFER,
+			gl::DEPTH_ATTACHMENT,
+			gl::TEXTURE_2D,
+			shadow_texture,
+			0
+		);
+		gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+
+		let framebuffer = Framebuffer {
+			name: shadow_framebuffer,
+			size: (size.0, size.1),
+			clear_flags: gl::DEPTH_BUFFER_BIT,
+			cull_face: gl::FRONT
+		};
+
+		RenderTarget {
+			framebuffer,
+			texture: shadow_texture
+		}
+    }
+
     pub unsafe fn bind(&self) {
         self.framebuffer.bind();
     }
