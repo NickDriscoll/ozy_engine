@@ -49,7 +49,7 @@ impl SimpleMesh {
                 }
             }
             None => {
-                panic!("Unable to load model.");
+                panic!("Unable to load OzyMesh: {}", path);
             }
         }
     }
