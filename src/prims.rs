@@ -3,7 +3,6 @@ use crate::glutil;
 
 pub fn sphere_index_count(segments: usize, rings: usize) -> usize {	
 	segments * (rings - 2) * 6 + 6 * segments
-	//segments * (rings - 2) * 6
 }
 
 pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
@@ -99,4 +98,55 @@ pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
 	}
 
 	unsafe { glutil::create_vertex_array_object(&verts, &inds, &attrib_offsets) }
+}
+
+//(-1.0, 1.0) plane with right-handed z-up
+pub fn plane_vao(vertices_width: usize) -> GLuint {
+	if vertices_width < 2 {
+		panic!("vertices_width must be greater than 2");
+	}
+
+	let floats_per_vertex = 8;
+	let mut vertex_buffer = vec![0.0; vertices_width * vertices_width * floats_per_vertex];
+	let mut indices = vec![0u16; (vertices_width-1)*(vertices_width-1) * 2 * 3];	
+	let attribute_offsets = [3, 3, 2];
+
+	//Filling out the vertex buffer
+	//Right-handed z-up, looking down at the x-y plane, this goes left-right, bottom-up
+	for i in 0..vertices_width {
+		let ypos = i as f32 * 2.0 / (vertices_width - 1) as f32 - 1.0;
+		let yuv = i as f32 / (vertices_width - 1) as f32;
+		let row_index = i * vertices_width * floats_per_vertex;
+
+		for j in 0..vertices_width {
+			let xpos = j as f32 * 2.0 / (vertices_width - 1) as f32 - 1.0;
+			let xuv = j as f32 / (vertices_width - 1) as f32;
+			let vertex_offset = row_index + j * floats_per_vertex;
+
+			vertex_buffer[vertex_offset] =     xpos;
+			vertex_buffer[vertex_offset + 1] = ypos;
+			vertex_buffer[vertex_offset + 2] = 0.0;
+			vertex_buffer[vertex_offset + 3] = 0.0;
+			vertex_buffer[vertex_offset + 4] = 0.0;
+			vertex_buffer[vertex_offset + 5] = 1.0;
+			vertex_buffer[vertex_offset + 6] = xuv;
+			vertex_buffer[vertex_offset + 7] = yuv;
+		}
+	}
+
+	//Filling out the index buffer
+	for i in 0..(vertices_width - 1) {
+		for j in 0..(vertices_width - 1) {
+			let current_square = i * (vertices_width - 1) + j;
+
+			indices[current_square * 6] =     (current_square + i) as u16;
+			indices[current_square * 6 + 1] = (current_square + i + 1) as u16;
+			indices[current_square * 6 + 2] = (current_square + vertices_width + i) as u16;
+			indices[current_square * 6 + 3] = (current_square + i + 1) as u16;
+			indices[current_square * 6 + 4] = (current_square + vertices_width + i + 1) as u16;
+			indices[current_square * 6 + 5] = (current_square + vertices_width + i) as u16;
+		}
+	}
+
+	unsafe { glutil::create_vertex_array_object(&vertex_buffer, &indices, &attribute_offsets) }
 }

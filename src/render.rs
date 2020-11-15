@@ -12,7 +12,7 @@ const DEFAULT_TEX_PARAMS: [(GLenum, GLenum); 4] = [
 	(gl::TEXTURE_MAG_FILTER, gl::LINEAR)
 ];
 
-pub const MAP_COUNT: usize = 3;      //[albedo, normal, roughness]
+pub const TEXTURE_MAP_COUNT: usize = 3;      //[albedo, normal, roughness]
 
 pub struct StaticGeometry {
     pub vao: GLuint,
@@ -27,10 +27,23 @@ pub struct SimpleMesh {
     pub vao: GLuint,
     pub index_count: GLint,
     pub origin: glm::TVec4<f32>,
-    pub texture_maps: [GLuint; MAP_COUNT]
+    pub texture_maps: [GLuint; TEXTURE_MAP_COUNT]
 }
 
 impl SimpleMesh {
+	pub fn new(vao: GLuint, index_count: GLint, material_name: &str, texture_keeper: &mut TextureKeeper) -> Self {
+		let albedo = texture_keeper.fetch_texture(material_name, "albedo");
+        let normal = texture_keeper.fetch_texture(material_name, "normal");
+        let roughness = texture_keeper.fetch_texture(material_name, "roughness");
+		
+		SimpleMesh {
+			vao,
+			index_count,
+			origin: glm::vec4(0.0, 0.0, 0.0, 1.0),
+			texture_maps: [albedo, normal, roughness]
+		}
+	}
+
     pub fn from_ozy(path: &str, texture_keeper: &mut TextureKeeper) -> Self {
         match routines::load_ozymesh(path) {
             Some(meshdata) => unsafe {
@@ -138,12 +151,12 @@ impl TextureKeeper {
         }
     }
 
-    pub unsafe fn fetch_texture(&mut self, name: &str, map_type: &str) -> GLuint {        
-		let texture_path = format!("textures/{}/{}.png", name, map_type);
+    pub fn fetch_texture(&mut self, name: &str, map_type: &str) -> GLuint {
+		let texture_path = format!("materials/{}/{}.png", name, map_type);
 		match self.map.get(&texture_path) {
 			Some(t) => { *t }
 			None => {
-				let name = glutil::load_texture(&texture_path, &DEFAULT_TEX_PARAMS);
+				let name = unsafe { glutil::load_texture(&texture_path, &DEFAULT_TEX_PARAMS) };
 				self.map.insert(texture_path, name);
 				name
 			}

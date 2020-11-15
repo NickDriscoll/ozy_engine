@@ -43,13 +43,13 @@ class Exporter(bpy.types.Operator, ImportHelper):
             normal_matrix.invert()
             normal_matrix = normal_matrix.to_4x4()
             normal_matrix.transpose()
-            z_to_y = Matrix(((1.0, 0.0, 0.0, 0.0),
-                             (0.0, 0.0, 1.0, 0.0),
-                             (0.0, 1.0, 0.0, 0.0),
-                             (0.0, 0.0, 0.0, 1.0)))
+            coord_transform = Matrix(((1.0, 0.0, 0.0, 0.0),
+                                      (0.0, 1.0, 0.0, 0.0),
+                                      (0.0, 0.0, 1.0, 0.0),
+                                      (0.0, 0.0, 0.0, 1.0)))
 
-            blender_to_game_world = z_to_y @ ob.matrix_world
-            normal_to_game_world = z_to_y @ normal_matrix
+            blender_to_game_world = coord_transform @ ob.matrix_world
+            normal_to_game_world = coord_transform @ normal_matrix
             
             #Assuming there's only one UV map
             uv_data = mesh.uv_layers[0].data
@@ -140,6 +140,8 @@ class Exporter(bpy.types.Operator, ImportHelper):
             output.write(index.to_bytes(2, "little"))        
             
         output.close()
+
+        print("Successfully saved mesh to %s!" % self.filepath)
         return {'FINISHED'}
 
 def register():
