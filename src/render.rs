@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::mem;
 use std::ptr;
 use std::os::raw::c_void;
-use crate::{glutil, routines};
+use crate::{glutil, io};
 
 const DEFAULT_TEX_PARAMS: [(GLenum, GLenum); 4] = [
 	(gl::TEXTURE_WRAP_S, gl::REPEAT),
@@ -13,6 +13,7 @@ const DEFAULT_TEX_PARAMS: [(GLenum, GLenum); 4] = [
 ];
 
 pub const TEXTURE_MAP_COUNT: usize = 3;      //[albedo, normal, roughness]
+const FLOATS_PER_TRANSFORM: usize = 16;
 
 pub struct StaticGeometry {
     pub vao: GLuint,
@@ -45,7 +46,7 @@ impl SimpleMesh {
 	}
 
     pub fn from_ozy(path: &str, texture_keeper: &mut TextureKeeper) -> Self {
-        match routines::load_ozymesh(path) {
+        match io::OzyMesh::load(path) {
             Some(meshdata) => unsafe {
                 let vao = glutil::create_vertex_array_object(&meshdata.vertex_array.vertices, &meshdata.vertex_array.indices, &meshdata.vertex_array.attribute_offsets);
                 let count = meshdata.geo_boundaries[1] as GLint;
@@ -76,35 +77,35 @@ pub struct InstancedMesh {
     max_instances: usize
 }
 
+unsafe fn create_transform_buffer(vao: GLuint, max_instances: usize, instanced_attribute: GLuint) -> GLuint {
+	gl::BindVertexArray(vao);
+
+	let mut b = 0;
+	gl::GenBuffers(1, &mut b);
+	gl::BindBuffer(gl::ARRAY_BUFFER, b);
+	gl::BufferData(gl::ARRAY_BUFFER, (max_instances * FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizeiptr, ptr::null(), gl::DYNAMIC_DRAW);
+
+	//Attach this buffer to the shell_mesh vao
+	//We have to individually bind each column of the matrix as a different vec4 vertex attribute
+	for i in 0..4 {
+		let attribute_index = instanced_attribute + i;
+		gl::VertexAttribPointer(attribute_index,
+								4,
+								gl::FLOAT,
+								gl::FALSE,
+								(FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizei,
+								(i * 4 * mem::size_of::<GLfloat>() as GLuint) as *const c_void);
+		gl::EnableVertexAttribArray(attribute_index);
+		gl::VertexAttribDivisor(attribute_index, 1);
+	}
+
+	b
+}
+
 impl InstancedMesh {
-    const FLOATS_PER_TRANSFORM: usize = 16;
-
-    pub fn new(vao: GLuint, index_count: GLint, max_instances: usize, instanced_attribute: GLuint) -> Self {
-        //Create GPU buffer for instanced matrices
-        let transform_buffer = unsafe {
-            gl::BindVertexArray(vao);
-
-            let mut b = 0;
-            gl::GenBuffers(1, &mut b);
-            gl::BindBuffer(gl::ARRAY_BUFFER, b);
-            gl::BufferData(gl::ARRAY_BUFFER, (max_instances * Self::FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizeiptr, ptr::null(), gl::DYNAMIC_DRAW);
-
-            //Attach this buffer to the shell_mesh vao
-            //We have to individually bind each column of the matrix as a different vec4 vertex attribute
-            for i in 0..4 {
-                let attribute_index = instanced_attribute + i;
-                gl::VertexAttribPointer(attribute_index,
-                                        4,
-                                        gl::FLOAT,
-                                        gl::FALSE,
-                                        (Self::FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizei,
-                                        (i * 4 * mem::size_of::<GLfloat>() as GLuint) as *const c_void);
-                gl::EnableVertexAttribArray(attribute_index);
-                gl::VertexAttribDivisor(attribute_index, 1);
-            }
-
-            b
-        };
+    pub unsafe fn new(vao: GLuint, index_count: GLint, max_instances: usize, instanced_attribute: GLuint) -> Self {
+		//Create GPU buffer for instanced matrices
+		let transform_buffer = create_transform_buffer(vao, max_instances, instanced_attribute);        
         
         InstancedMesh {
             vao,
@@ -113,7 +114,11 @@ impl InstancedMesh {
             active_instances: 0,
             transform_buffer
         }
-    }
+	}
+	
+	pub unsafe fn from_simplemesh(s_mesh: &SimpleMesh, max_instances: usize, instanced_attribute: GLuint) -> Self {
+		Self::new(s_mesh.vao, s_mesh.index_count, max_instances, instanced_attribute)
+	}
 
     pub unsafe fn draw(&self) {
         gl::BindVertexArray(self.vao);
@@ -124,7 +129,7 @@ impl InstancedMesh {
 
     pub fn update_buffer(&mut self, transforms: &[f32]) {
         //Record the current active instance count
-        self.active_instances = transforms.len() / Self::FLOATS_PER_TRANSFORM;
+        self.active_instances = transforms.len() / FLOATS_PER_TRANSFORM;
 
         //Update GPU buffer storing hit volume transforms
 		if transforms.len() > 0 {

@@ -8,6 +8,60 @@ use std::os::raw::c_void;
 use image::DynamicImage;
 use crate::structs::*;
 
+pub extern "system" fn gl_debug_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, _: *mut c_void) {
+	println!("--------------------OpenGL debug message--------------------");
+	println!("ID: {}", id);
+	
+	match source {
+		gl::DEBUG_SOURCE_API => 				{ println!("Source: API"); }
+		gl::DEBUG_SOURCE_WINDOW_SYSTEM => 		{ println!("Source: Window System"); }
+		gl::DEBUG_SOURCE_SHADER_COMPILER => 	{ println!("Source: Shader Compiler"); }
+		gl::DEBUG_SOURCE_THIRD_PARTY => 		{ println!("Source: Third Party"); }
+		gl::DEBUG_SOURCE_APPLICATION => 		{ println!("Source: Application"); }
+		gl::DEBUG_SOURCE_OTHER => 				{ println!("Source: Other"); }
+		_ => {}
+	}
+
+	match gltype {
+		gl::DEBUG_TYPE_ERROR => 					{ println!("Type: Error") }
+		gl::DEBUG_TYPE_DEPRECATED_BEHAVIOR => 		{ println!("Type: Deprecated Behaviour") }
+		gl::DEBUG_TYPE_UNDEFINED_BEHAVIOR => 		{ println!("Type: Undefined Behaviour") }
+		gl::DEBUG_TYPE_PORTABILITY => 				{ println!("Type: Portability") }
+		gl::DEBUG_TYPE_PERFORMANCE => 				{ println!("Type: Performance") }
+		gl::DEBUG_TYPE_MARKER => 					{ println!("Type: Marker") }
+		gl::DEBUG_TYPE_PUSH_GROUP => 				{ println!("Type: Push Group") }
+		gl::DEBUG_TYPE_POP_GROUP => 				{ println!("Type: Pop Group") }
+		gl::DEBUG_TYPE_OTHER => 					{ println!("Type: Other") }
+		_ => {}
+	}
+
+	match severity {
+		gl::DEBUG_SEVERITY_HIGH => { 
+			println!("Severity: High"); 
+		}
+		gl::DEBUG_SEVERITY_MEDIUM => { 
+			println!("Severity: Medium"); 
+		}
+		gl::DEBUG_SEVERITY_LOW => { 
+			println!("Severity: Low"); 
+		}
+		gl::DEBUG_SEVERITY_NOTIFICATION => { 
+			println!("Severity: Notification"); 
+		}
+		_ => {}
+	}
+
+	let m = unsafe {
+		let mut buffer = vec![0; length as usize];
+		for i in 0..length as isize {
+			buffer[i as usize] = *message.offset(i) as u8;
+		}
+		String::from_utf8(buffer).unwrap()
+	};
+
+	println!("Message: {}", m);
+}
+
 pub unsafe fn compile_shader(shadertype: GLenum, source: &str) -> GLuint {
 	let shader = gl::CreateShader(shadertype);
 	let cstr_vert = CString::new(source.as_bytes()).unwrap();
@@ -68,7 +122,7 @@ pub unsafe fn compile_program_from_files(vertex_name: &str, fragment_name: &str)
 	shader_progam
 }
 
-pub fn shader_compilation_error(infolog: &[u8]) {
+fn shader_compilation_error(infolog: &[u8]) {
 	let error_message = match str::from_utf8(infolog) {
 		Ok(message) => { message }
 		Err(_) => { panic!("Error getting the shader compilation error. This statement should be unreachable."); }
@@ -234,4 +288,9 @@ pub unsafe fn bind_vector4(program: GLuint, name: &str, vector: &glm::TVec4<f32>
 pub unsafe fn bind_int(program: GLuint, name: &str, number: GLint) {
 	gl::UseProgram(program);
 	gl::Uniform1i(uniform_location(program, name), number);
+}
+
+pub unsafe fn bind_float(program: GLuint, name: &str, number: GLfloat) {
+	gl::UseProgram(program);
+	gl::Uniform1f(uniform_location(program, name), number);
 }
