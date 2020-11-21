@@ -28,8 +28,6 @@ class Exporter(bpy.types.Operator, ImportHelper):
         index_buffer = []
         names = []
         texture_names = []
-        node_ids = []
-        parent_ids = []
         origins = []
         geo_boundaries = [0]
         current_index = 0
@@ -63,16 +61,6 @@ class Exporter(bpy.types.Operator, ImportHelper):
             
             origin = blender_to_game_world @ Vector((0.0, 0.0, 0.0, 1.0))
             origins.append((origin.x, origin.y, origin.z))
-            
-            if 'node_id' not in ob:
-                print("%s does not have the custom property \"%s\" defined." % (mesh.name, 'node_id'))
-                return { "CANCELLED" }
-            node_ids.append(int(ob['node_id']))
-            
-            if 'parent_id' not in ob:
-                parent_ids.append(0)
-            else:
-                parent_ids.append(int(ob['parent_id']))
             
             ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
             for face in mesh.polygons:
@@ -113,8 +101,8 @@ class Exporter(bpy.types.Operator, ImportHelper):
         #Write the number of meshes
         output.write(len_as_u32(names, 1))
         
-        #Write the geo_boundaries array, node_ids, and parent_ids
-        u16_buffers = [geo_boundaries, node_ids, parent_ids]
+        #Write the geo_boundaries array
+        u16_buffers = [geo_boundaries]
         for buf in u16_buffers:
             for element in buf:
                 output.write(bytearray(element.to_bytes(2, "little")))
