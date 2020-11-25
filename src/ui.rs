@@ -1,6 +1,7 @@
 use crate::structs::{OptionVec};
 use crate::glutil;
-use glyph_brush::{BrushAction, BrushError, GlyphBrush, GlyphCruncher, GlyphVertex, ab_glyph::PxScale, Section, Rectangle, Text};
+use crate::render;
+use glyph_brush::{BrushAction, BrushError, ab_glyph::FontArc, GlyphBrush, GlyphBrushBuilder, GlyphCruncher, GlyphVertex, ab_glyph::PxScale, Section, Rectangle, Text};
 use gl::types::*;
 use std::os::raw::c_void;
 use std::{mem, ptr};
@@ -52,17 +53,24 @@ fn glyph_vertex_transform(vertex: GlyphVertex) -> GlyphBrushVertexType {
 	]	
 }
 
+unsafe fn draw_ui_elements(vao: GLuint, shader: GLuint, count: usize, clipping_from_screen: &glm::TMat4<f32>) {
+    gl::UseProgram(shader);
+	glutil::bind_matrix4(shader, "clipping_from_screen", &clipping_from_screen);
+	gl::BindVertexArray(vao);
+	gl::DrawElements(gl::TRIANGLES, 6 * count as GLint, gl::UNSIGNED_SHORT, ptr::null());
+}
+
 //Subset of UIState created to fix some borrowing issues
 pub struct UIInternals<'a, T> {
     vao_flag: bool,
-	pub glyph_brush: &'a mut GlyphBrush<GlyphBrushVertexType>,
+	pub glyph_brush: GlyphBrush<GlyphBrushVertexType>,
 	window_size: (u32, u32),
     buttons: OptionVec<UIButton<T>>,
     sections: OptionVec<Section<'a>>
 }
 
 impl<'a, T> UIInternals<'a, T> {
-    pub fn new(glyph_brush: &'a mut GlyphBrush<GlyphBrushVertexType>, window_size: (u32, u32)) -> Self {
+    pub fn new(glyph_brush: GlyphBrush<GlyphBrushVertexType>, window_size: (u32, u32)) -> Self {
         UIInternals {
             vao_flag: false,
 			glyph_brush,
@@ -105,14 +113,26 @@ pub struct UIState<'a, T> {
 	pub glyph_count: usize,
 	menu_chains: Vec<Vec<usize>>, //Array of array of menu ids used for nested menu traversal
 	menus: Vec<Menu<'a, T>>,
-	text_elements: Vec<UIText<'a>>
+	text_elements: Vec<UIText<'a>>,
+	programs: [GLuint; 2]
 }
 
 impl<'a, T: Copy> UIState<'a, T> {
+	const BUTTON_SHADER: usize = 0;
+	const GLYPH_SHADER: usize = 1;
+
     pub const FLOATS_PER_COLOR: usize = 4;
     pub const COLORS_PER_BUTTON: usize = 4;
 
-    pub fn new(glyph_brush: &'a mut GlyphBrush<GlyphBrushVertexType>, window_size: (u32, u32)) -> Self {
+    pub fn new(font_bytes: &'static [u8], window_size: (u32, u32), programs: [GLuint; 2]) -> Self {
+		//Load font used for text rendering
+		let font = match FontArc::try_from_slice(font_bytes) {
+			Ok(s) => { s }
+			Err(e) => { panic!("{}", e) }
+		};
+
+		let glyph_brush = GlyphBrushBuilder::using_font(font).build();
+
         //Create the glyph texture
         let glyph_texture = unsafe {
             let (width, height) = glyph_brush.texture_dimensions();
@@ -142,7 +162,8 @@ impl<'a, T: Copy> UIState<'a, T> {
 			glyph_count: 0,
 			menu_chains: Vec::new(),
 			menus: Vec::new(),
-			text_elements: Vec::new()
+			text_elements: Vec::new(),
+			programs
         }
     }
 	
@@ -161,6 +182,21 @@ impl<'a, T: Copy> UIState<'a, T> {
 	pub fn create_menu_chain(&mut self) -> usize {
 		self.menu_chains.push(Vec::new());
 		self.menu_chains.len() - 1
+	}
+
+	pub unsafe fn draw(&self, screen_state: &render::ScreenState) {
+		//Render UI buttons
+		if let Some(vao) = self.buttons_vao {
+			draw_ui_elements(vao, self.programs[Self::BUTTON_SHADER], self.button_count(), screen_state.get_clipping_from_screen());
+		}
+
+		//Render text
+		if let Some(vao) = self.glyph_vao {
+			gl::ActiveTexture(gl::TEXTURE0);
+			gl::BindTexture(gl::TEXTURE_2D, self.glyph_texture);
+
+			draw_ui_elements(vao, self.programs[Self::GLYPH_SHADER], self.glyph_count, screen_state.get_clipping_from_screen());
+		}
 	}
 
     pub fn hide_all_menus(&mut self) {
@@ -556,12 +592,13 @@ pub struct Menu<'a, T> {
 	button_commands: Vec<Option<T>>,
 	label_colors: Vec<[f32; 4]>,
     anchor: UIAnchor,
-    active: bool,
+	active: bool,
+	font_size: f32,
     ids: Vec<usize> //Indices into the buttons OptionVec. These are only valid when self.active == true
 }
 
 impl<'a, T: Copy> Menu<'a, T> {
-    pub fn new(buttons: Vec<(&'a str, Option<T>)>, anchor: UIAnchor) -> Self {
+    pub fn new(buttons: Vec<(&'a str, Option<T>)>, anchor: UIAnchor, font_size: f32) -> Self {
 		let size = buttons.len();
 		let mut button_labels = Vec::with_capacity(size);
 		let mut button_commands = Vec::with_capacity(size);
@@ -579,12 +616,13 @@ impl<'a, T: Copy> Menu<'a, T> {
             button_commands,
             label_colors,
             anchor,
-            active: false,
+			active: false,
+			font_size,
             ids: vec![0; size]
         }
 	}
 	
-	pub fn new_with_colors(buttons: Vec<(&'a str, Option<T>, [f32; 4])>, anchor: UIAnchor) -> Self {
+	pub fn new_with_colors(buttons: Vec<(&'a str, Option<T>, [f32; 4])>, anchor: UIAnchor, font_size: f32) -> Self {
 		let size = buttons.len();
 		let mut button_labels = Vec::with_capacity(size);
 		let mut button_commands = Vec::with_capacity(size);
@@ -600,7 +638,8 @@ impl<'a, T: Copy> Menu<'a, T> {
             button_commands,
             label_colors,
             anchor,
-            active: false,
+			active: false,
+			font_size,
             ids: vec![0; size]
         }
 	}
@@ -610,14 +649,13 @@ impl<'a, T: Copy> Menu<'a, T> {
         if self.active { return; }
 
         //Submit the pause menu data
-		const BORDER_WIDTH: f32 = 15.0;
+		const BORDER_PROPORTION: f32 = 0.2;
 		const BUFFER_DISTANCE: f32 = 10.0;
-		let font_size = 36.0;
 		for i in 0..self.button_labels.len() {
 			let mut section = {
 				let section = Section::new();
 				let mut text = Text::new(self.button_labels[i]).with_color(self.label_colors[i]);
-				text.scale = PxScale::from(font_size);
+				text.scale = PxScale::from(self.font_size);
 				section.add_text(text)
 			};
 			let bounding_box = match ui_internals.glyph_brush.glyph_bounds(&section) {
@@ -626,8 +664,9 @@ impl<'a, T: Copy> Menu<'a, T> {
 			};
 
 			//Create the associated UI button
-			let width = bounding_box.width() + BORDER_WIDTH * 2.0;
-            let height = bounding_box.height() + BORDER_WIDTH * 2.0;
+			let border = bounding_box.height() * BORDER_PROPORTION;
+			let width = bounding_box.width() + 2.0 * border;
+			let height = bounding_box.height() + 2.0 * border;
 
             let button_bounds = match self.anchor {
                 UIAnchor::LeftAligned((x, y)) => {
@@ -659,8 +698,8 @@ impl<'a, T: Copy> Menu<'a, T> {
             };
 					
 		    section.screen_position = (
-			    button_bounds.min[0] + BORDER_WIDTH,
-			    button_bounds.min[1] + BORDER_WIDTH
+			    button_bounds.min[0] + border,
+			    button_bounds.min[1] + border
 		    );
 
 		    //Finally insert the section into the array

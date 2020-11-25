@@ -16,6 +16,11 @@ def write_pascal_strings(file, strs):
     for s in strs:
         file.write(len_as_u32(s, 1))
         file.write(bytearray(s, 'utf-8'))
+        
+def show_message_box(message = "", title = "Message Box", icon = 'INFO'):
+    def draw(self, context):
+        self.layout.label(text=message)
+    bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
 
 class Exporter(bpy.types.Operator, ImportHelper):
     """OzyMesh exporter"""      # Use this as a tooltip for menu items and buttons.
@@ -55,8 +60,8 @@ class Exporter(bpy.types.Operator, ImportHelper):
             names.append(mesh.name)
             
             if not ob.active_material:
-                print("%s does not have an active material." % mesh.name)
-                return { "CANCELLED" }                
+                show_message_box("\"%s\" needs to have an active material." % mesh.name, "Unable to export OzyMesh", 'ERROR')
+                return { "CANCELLED" }
             texture_names.append(ob.active_material.name)
             
             origin = blender_to_game_world @ Vector((0.0, 0.0, 0.0, 1.0))

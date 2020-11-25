@@ -222,6 +222,19 @@ pub fn image_data_from_path(path: &str) -> ImageData {
 				internal_format: gl::SRGB8_ALPHA8
 			}
 		}
+		Ok(DynamicImage::ImageLuma8(im)) => {
+			let width = im.width();
+			let height = im.height();
+			let raw = im.into_raw();
+
+			ImageData {
+				data: raw,
+				width: width as GLint,
+				height: height as GLint,
+				format: gl::RED,
+				internal_format: gl::R8
+			}
+		}
 		Ok(_) => {
             println!("{} is of an unsupported image type", path);
             ImageData {
