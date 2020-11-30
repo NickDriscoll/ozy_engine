@@ -60,6 +60,7 @@ pub extern "system" fn gl_debug_callback(source: GLenum, gltype: GLenum, id: GLu
 	};
 
 	println!("Message: {}", m);
+	println!("------------------------------------------------------------");
 }
 
 pub unsafe fn compile_shader(shadertype: GLenum, source: &str) -> GLuint {
