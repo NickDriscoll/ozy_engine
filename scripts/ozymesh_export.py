@@ -7,6 +7,7 @@ bl_info = {
 import bpy
 import struct
 from bpy_extras.io_utils import ImportHelper
+from bpy.props import StringProperty
 from mathutils import Matrix, Vector
 
 def len_as_u32(inp, type_size):
@@ -23,10 +24,20 @@ def show_message_box(message = "", title = "Message Box", icon = 'INFO'):
     bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
 
 class Exporter(bpy.types.Operator, ImportHelper):
-    """OzyMesh exporter"""      # Use this as a tooltip for menu items and buttons.
+    """Export selection to OzyMesh file (.ozy)"""      # Use this as a tooltip for menu items and buttons.
     bl_idname = "ozymesh.exporter"        # Unique identifier for buttons and menu items to reference.
-    bl_label = "Export as OzyMesh"         # Display name in the interface.
+    bl_label = "OzyMesh (.ozy)"         # Display name in the interface.
     bl_options = {'REGISTER'}
+    
+    filename_ext = ".ozy"
+    filter_glob: StringProperty(
+        default='*.ozy',
+        options={'HIDDEN'}
+    )
+    
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
     
     def execute(self, context):
         vertex_index_map = {} #Dict elements are (vertex, u16)
@@ -101,7 +112,8 @@ class Exporter(bpy.types.Operator, ImportHelper):
             geo_boundaries.append(geo_boundaries[len(geo_boundaries) - 1] + len(mesh.polygons) * 3)
 
         #Write the data to a file
-        output = open(self.filepath, "wb")
+        filepath = self.filepath
+        output = open(filepath, "wb")
         
         #Write the number of meshes
         output.write(len_as_u32(names, 1))
@@ -134,14 +146,19 @@ class Exporter(bpy.types.Operator, ImportHelper):
             
         output.close()
 
-        print("Successfully saved mesh to %s!" % self.filepath)
+        print("Successfully saved mesh to %s" % filepath)
         return {'FINISHED'}
 
-def register():
+def menu_func(self, context):
+    self.layout.operator(Exporter.bl_idname)
+
+def register():    
     bpy.utils.register_class(Exporter)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func)
 
 def unregister():
     bpy.utils.unregister_class(Exporter)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func)
     
 if __name__ == '__main__':
     register()

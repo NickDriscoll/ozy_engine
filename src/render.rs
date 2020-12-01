@@ -245,6 +245,8 @@ pub struct Framebuffer {
 }
 
 impl Framebuffer {
+	
+
     pub unsafe fn bind(&self) {
         gl::BindFramebuffer(gl::FRAMEBUFFER, self.name);
         gl::Viewport(0, 0, self.size.0, self.size.1);
