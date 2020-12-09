@@ -100,16 +100,25 @@ pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
 	unsafe { glutil::create_vertex_array_object(&verts, &inds, &attrib_offsets) }
 }
 
-//(-1.0, 1.0) plane with right-handed z-up
+/*
+  (-1.0, 1.0) plane with right-handed z-up
+  Vertex attributes are as follows:
+	vec3 position
+	vec3 tangent;
+	vec3 bitangent;
+	vec3 normal;
+	vec2 uv;
+//
+*/
 pub fn plane_vao(vertices_width: usize) -> GLuint {
 	if vertices_width < 2 {
 		panic!("vertices_width must be greater than 2");
 	}
 
-	let floats_per_vertex = 8;
+	let floats_per_vertex = 14;
 	let mut vertex_buffer = vec![0.0; vertices_width * vertices_width * floats_per_vertex];
 	let mut indices = vec![0u16; (vertices_width-1)*(vertices_width-1) * 2 * 3];	
-	let attribute_offsets = [3, 3, 2];
+	let attribute_offsets = [3, 3, 3, 3, 2];
 
 	//Filling out the vertex buffer
 	//Right-handed z-up, looking down at the x-y plane, this goes left-right, bottom-up
@@ -126,11 +135,21 @@ pub fn plane_vao(vertices_width: usize) -> GLuint {
 			vertex_buffer[vertex_offset] =     xpos;
 			vertex_buffer[vertex_offset + 1] = ypos;
 			vertex_buffer[vertex_offset + 2] = 0.0;
-			vertex_buffer[vertex_offset + 3] = 0.0;
+
+			vertex_buffer[vertex_offset + 3] = 1.0;
 			vertex_buffer[vertex_offset + 4] = 0.0;
-			vertex_buffer[vertex_offset + 5] = 1.0;
-			vertex_buffer[vertex_offset + 6] = xuv;
-			vertex_buffer[vertex_offset + 7] = yuv;
+			vertex_buffer[vertex_offset + 5] = 0.0;
+
+			vertex_buffer[vertex_offset + 6] = 0.0;
+			vertex_buffer[vertex_offset + 7] = 1.0;
+			vertex_buffer[vertex_offset + 8] = 0.0;
+
+			vertex_buffer[vertex_offset + 9] = 0.0;
+			vertex_buffer[vertex_offset + 10] = 0.0;
+			vertex_buffer[vertex_offset + 11] = 1.0;
+			
+			vertex_buffer[vertex_offset + 12] = xuv;
+			vertex_buffer[vertex_offset + 13] = yuv;
 		}
 	}
 

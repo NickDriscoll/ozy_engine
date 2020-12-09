@@ -392,11 +392,9 @@ impl RenderTarget {
 			framebuffer,
 			texture: shadow_texture
 		}
-    }
+	}
 
-    pub unsafe fn bind(&self) {
-        self.framebuffer.bind();
-    }
+    pub unsafe fn bind(&self) { self.framebuffer.bind(); }
 
     pub unsafe fn resize(&mut self, size: (u32, u32)) {
         gl::DeleteFramebuffers(1, &self.framebuffer.name);

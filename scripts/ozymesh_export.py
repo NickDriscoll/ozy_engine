@@ -35,10 +35,6 @@ class Exporter(bpy.types.Operator, ImportHelper):
         options={'HIDDEN'}
     )
     
-    def invoke(self, context, event):
-        context.window_manager.fileselect_add(self)
-        return {'RUNNING_MODAL'}
-    
     def execute(self, context):
         vertex_index_map = {} #Dict elements are (vertex, u16)
         index_buffer = []
