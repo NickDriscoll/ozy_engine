@@ -15,6 +15,15 @@ const DEFAULT_TEX_PARAMS: [(GLenum, GLenum); 4] = [
 pub const TEXTURE_MAP_COUNT: usize = 3;      //[albedo, normal, roughness]
 const FLOATS_PER_TRANSFORM: usize = 16;
 
+fn clip_from_screen(screen_size: glm::TVec2<u32>) -> glm::TMat4<f32> {
+	glm::mat4(
+		2.0 / screen_size.x as f32, 0.0, 0.0, -1.0,
+		0.0, -(2.0 / screen_size.y as f32), 0.0, 1.0,
+		0.0, 0.0, 1.0, 0.0,
+		0.0, 0.0, 0.0, 1.0
+	)
+}
+
 pub struct ScreenState {
     window_size: glm::TVec2<u32>,
     aspect_ratio: f32,
@@ -31,12 +40,7 @@ impl ScreenState {
         let aspect_ratio = window_size.x as f32 / window_size.y as f32;
         let clipping_from_world = clipping_from_view * view_from_world;
         let world_from_clipping = glm::affine_inverse(clipping_from_world);
-        let clipping_from_screen = glm::mat4(
-            2.0 / window_size.x as f32, 0.0, 0.0, -1.0,
-            0.0, -(2.0 / window_size.y as f32), 0.0, 1.0,
-            0.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 1.0
-        );
+        let clipping_from_screen = clip_from_screen(window_size);
 
         //Initialize default framebuffer
         let default_framebuffer = Framebuffer {
@@ -61,12 +65,7 @@ impl ScreenState {
 	pub fn update_view(&mut self, view_from_world: glm::TMat4<f32>) {
 		let clipping_from_world = self.clipping_from_view * view_from_world;
         let world_from_clipping = glm::affine_inverse(clipping_from_world);
-        let clipping_from_screen = glm::mat4(
-            2.0 / self.window_size.x as f32, 0.0, 0.0, -1.0,
-            0.0, -(2.0 / self.window_size.y as f32), 0.0, 1.0,
-            0.0, 0.0, 1.0, 0.0,
-            0.0, 0.0, 0.0, 1.0
-		);
+        let clipping_from_screen = clip_from_screen(self.window_size);
 		
 		self.view_from_world = view_from_world;
 		self.clipping_from_world = clipping_from_world;
@@ -101,9 +100,9 @@ pub struct SimpleMesh {
 
 impl SimpleMesh {
 	pub fn new(vao: GLuint, index_count: GLint, material_name: &str, texture_keeper: &mut TextureKeeper, tex_params: &[(GLenum, GLenum)]) -> Self {
-		let albedo = texture_keeper.fetch_texture(material_name, "albedo", tex_params);
-        let normal = texture_keeper.fetch_texture(material_name, "normal", tex_params);
-        let roughness = texture_keeper.fetch_texture(material_name, "roughness", tex_params);
+		let albedo = texture_keeper.fetch_texture(material_name, "albedo", tex_params, glutil::ColorSpace::Gamma);
+        let normal = texture_keeper.fetch_texture(material_name, "normal", tex_params, glutil::ColorSpace::Linear);
+        let roughness = texture_keeper.fetch_texture(material_name, "roughness", tex_params, glutil::ColorSpace::Linear);
 		
 		SimpleMesh {
 			vao,
@@ -119,9 +118,9 @@ impl SimpleMesh {
                 let vao = glutil::create_vertex_array_object(&meshdata.vertex_array.vertices, &meshdata.vertex_array.indices, &meshdata.vertex_array.attribute_offsets);
                 let count = meshdata.geo_boundaries[1] as GLint;
                 let origin = meshdata.origins[0];
-                let albedo = texture_keeper.fetch_texture(&meshdata.texture_names[0], "albedo", tex_params);
-                let normal = texture_keeper.fetch_texture(&meshdata.texture_names[0], "normal", tex_params);
-                let roughness = texture_keeper.fetch_texture(&meshdata.texture_names[0], "roughness", tex_params);
+                let albedo = texture_keeper.fetch_texture(&meshdata.texture_names[0], "albedo", tex_params, glutil::ColorSpace::Gamma);
+                let normal = texture_keeper.fetch_texture(&meshdata.texture_names[0], "normal", tex_params, glutil::ColorSpace::Linear);
+                let roughness = texture_keeper.fetch_texture(&meshdata.texture_names[0], "roughness", tex_params, glutil::ColorSpace::Linear);
     
                 SimpleMesh {
                     vao,
@@ -224,12 +223,12 @@ impl TextureKeeper {
         }
     }
 
-    pub fn fetch_texture(&mut self, name: &str, map_type: &str, tex_params: &[(GLenum, GLenum)]) -> GLuint {
+    pub fn fetch_texture(&mut self, name: &str, map_type: &str, tex_params: &[(GLenum, GLenum)], color_space: glutil::ColorSpace) -> GLuint {
 		let texture_path = format!("materials/{}/{}.png", name, map_type);
 		match self.map.get(&texture_path) {
 			Some(t) => { *t }
 			None => {
-				let name = unsafe { glutil::load_texture(&texture_path, tex_params) };
+				let name = unsafe { glutil::load_texture(&texture_path, tex_params, color_space) };
 				self.map.insert(texture_path, name);
 				name
 			}

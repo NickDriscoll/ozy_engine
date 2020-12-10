@@ -193,13 +193,23 @@ pub unsafe fn create_vertex_array_object(vertices: &[f32], indices: &[u16], attr
 	vao
 }
 
-pub unsafe fn load_texture(path: &str, parameters: &[(GLenum, GLenum)]) -> GLuint {
-	load_texture_from_data(image_data_from_path(path), parameters)
+pub unsafe fn load_texture(path: &str, parameters: &[(GLenum, GLenum)], color_space: ColorSpace) -> GLuint {
+	load_texture_from_data(image_data_from_path(path, color_space), parameters)
 }
 
-pub fn image_data_from_path(path: &str) -> ImageData {
+pub enum ColorSpace {
+	Linear,
+	Gamma
+}
+
+pub fn image_data_from_path(path: &str, space: ColorSpace) -> ImageData {
 	match image::open(path) {
 		Ok(DynamicImage::ImageRgb8(im)) => {
+			let internal_format = match space {
+				ColorSpace::Linear => { gl::RGB8 }
+				ColorSpace::Gamma => { gl::SRGB8 }
+			};
+
 			let width = im.width();
 			let height = im.height();
 			let raw = im.into_raw();
@@ -208,10 +218,15 @@ pub fn image_data_from_path(path: &str) -> ImageData {
 				width: width as GLint,
 				height: height as GLint,
 				format: gl::RGB,
-				internal_format: gl::SRGB8
+				internal_format
 			}
 		}
 		Ok(DynamicImage::ImageRgba8(im)) => {
+			let internal_format = match space {
+				ColorSpace::Linear => { gl::RGBA8 }
+				ColorSpace::Gamma => { gl::SRGB8_ALPHA8 }
+			};
+
 			let width = im.width();
 			let height = im.height();
 			let raw = im.into_raw();
@@ -220,7 +235,7 @@ pub fn image_data_from_path(path: &str) -> ImageData {
 				width: width as GLint,
 				height: height as GLint,
 				format: gl::RGBA,
-				internal_format: gl::SRGB8_ALPHA8
+				internal_format
 			}
 		}
 		Ok(DynamicImage::ImageLuma8(im)) => {
