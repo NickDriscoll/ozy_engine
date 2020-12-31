@@ -4,6 +4,7 @@ use std::mem;
 use std::ptr;
 use std::os::raw::c_void;
 use crate::{glutil, io};
+use glutil::ColorSpace;
 
 const DEFAULT_TEX_PARAMS: [(GLenum, GLenum); 4] = [
 	(gl::TEXTURE_WRAP_S, gl::REPEAT),
@@ -100,9 +101,9 @@ pub struct SimpleMesh {
 
 impl SimpleMesh {
 	pub fn new(vao: GLuint, index_count: GLint, material_name: &str, texture_keeper: &mut TextureKeeper, tex_params: &[(GLenum, GLenum)]) -> Self {
-		let albedo = texture_keeper.fetch_texture(material_name, "albedo", tex_params, glutil::ColorSpace::Gamma);
-        let normal = texture_keeper.fetch_texture(material_name, "normal", tex_params, glutil::ColorSpace::Linear);
-        let roughness = texture_keeper.fetch_texture(material_name, "roughness", tex_params, glutil::ColorSpace::Linear);
+		let albedo = texture_keeper.fetch_texture(material_name, "albedo", tex_params, ColorSpace::Gamma);
+        let normal = texture_keeper.fetch_texture(material_name, "normal", tex_params, ColorSpace::Linear);
+        let roughness = texture_keeper.fetch_texture(material_name, "roughness", tex_params, ColorSpace::Linear);
 		
 		SimpleMesh {
 			vao,
@@ -118,9 +119,9 @@ impl SimpleMesh {
                 let vao = glutil::create_vertex_array_object(&meshdata.vertex_array.vertices, &meshdata.vertex_array.indices, &meshdata.vertex_array.attribute_offsets);
                 let count = meshdata.geo_boundaries[1] as GLint;
                 let origin = meshdata.origins[0];
-                let albedo = texture_keeper.fetch_texture(&meshdata.texture_names[0], "albedo", tex_params, glutil::ColorSpace::Gamma);
-                let normal = texture_keeper.fetch_texture(&meshdata.texture_names[0], "normal", tex_params, glutil::ColorSpace::Linear);
-                let roughness = texture_keeper.fetch_texture(&meshdata.texture_names[0], "roughness", tex_params, glutil::ColorSpace::Linear);
+                let albedo = texture_keeper.fetch_texture(&meshdata.texture_names[0], "albedo", tex_params, ColorSpace::Gamma);
+                let normal = texture_keeper.fetch_texture(&meshdata.texture_names[0], "normal", tex_params, ColorSpace::Linear);
+                let roughness = texture_keeper.fetch_texture(&meshdata.texture_names[0], "roughness", tex_params, ColorSpace::Linear);
     
                 SimpleMesh {
                     vao,
@@ -141,7 +142,53 @@ pub struct InstancedMesh {
     transform_buffer: GLuint,
     index_count: GLint,
     active_instances: usize,
-    max_instances: usize
+	max_instances: usize,
+	texture_maps: [GLuint; TEXTURE_MAP_COUNT]
+}
+
+impl InstancedMesh {
+    pub unsafe fn new(vao: GLuint, index_count: GLint, max_instances: usize, instanced_attribute: GLuint, maps: [GLuint; TEXTURE_MAP_COUNT]) -> Self {
+		//Create GPU buffer for instanced matrices
+		let transform_buffer = create_transform_buffer(vao, max_instances, instanced_attribute);        
+        
+        InstancedMesh {
+            vao,
+            max_instances,
+            index_count,
+            active_instances: 0,
+			transform_buffer,
+			texture_maps: maps
+        }
+	}
+	
+	pub unsafe fn from_simplemesh(s_mesh: &SimpleMesh, max_instances: usize, instanced_attribute: GLuint) -> Self {
+		Self::new(s_mesh.vao, s_mesh.index_count, max_instances, instanced_attribute, s_mesh.texture_maps)
+	}
+
+    pub unsafe fn draw(&self) {
+        gl::BindVertexArray(self.vao);
+		gl::DrawElementsInstanced(gl::TRIANGLES, self.index_count, gl::UNSIGNED_SHORT, ptr::null(), self.active_instances as GLint);
+    }
+
+	pub fn max_instances(&self) -> usize { self.max_instances }
+	pub fn texture_maps(&self) -> &[GLuint; TEXTURE_MAP_COUNT] { &self.texture_maps }
+
+    pub fn update_buffer(&mut self, transforms: &[f32]) {
+        //Record the current active instance count
+        self.active_instances = transforms.len() / FLOATS_PER_TRANSFORM;
+
+        //Update GPU buffer storing hit volume transforms
+		if transforms.len() > 0 {
+			unsafe {
+				gl::BindBuffer(gl::ARRAY_BUFFER, self.transform_buffer);
+				gl::BufferSubData(gl::ARRAY_BUFFER,
+								0 as GLsizeiptr,
+								(transforms.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
+								&transforms[0] as *const GLfloat as *const c_void
+								);
+			}
+		}
+    }
 }
 
 unsafe fn create_transform_buffer(vao: GLuint, max_instances: usize, instanced_attribute: GLuint) -> GLuint {
@@ -167,49 +214,6 @@ unsafe fn create_transform_buffer(vao: GLuint, max_instances: usize, instanced_a
 	}
 
 	b
-}
-
-impl InstancedMesh {
-    pub unsafe fn new(vao: GLuint, index_count: GLint, max_instances: usize, instanced_attribute: GLuint) -> Self {
-		//Create GPU buffer for instanced matrices
-		let transform_buffer = create_transform_buffer(vao, max_instances, instanced_attribute);        
-        
-        InstancedMesh {
-            vao,
-            max_instances,
-            index_count,
-            active_instances: 0,
-            transform_buffer
-        }
-	}
-	
-	pub unsafe fn from_simplemesh(s_mesh: &SimpleMesh, max_instances: usize, instanced_attribute: GLuint) -> Self {
-		Self::new(s_mesh.vao, s_mesh.index_count, max_instances, instanced_attribute)
-	}
-
-    pub unsafe fn draw(&self) {
-        gl::BindVertexArray(self.vao);
-		gl::DrawElementsInstanced(gl::TRIANGLES, self.index_count, gl::UNSIGNED_SHORT, ptr::null(), self.active_instances as GLint);
-    }
-
-    pub fn max_instances(&self) -> usize { self.max_instances }
-
-    pub fn update_buffer(&mut self, transforms: &[f32]) {
-        //Record the current active instance count
-        self.active_instances = transforms.len() / FLOATS_PER_TRANSFORM;
-
-        //Update GPU buffer storing hit volume transforms
-		if transforms.len() > 0 {
-			unsafe {
-				gl::BindBuffer(gl::ARRAY_BUFFER, self.transform_buffer);
-				gl::BufferSubData(gl::ARRAY_BUFFER,
-								0 as GLsizeiptr,
-								(transforms.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-								&transforms[0] as *const GLfloat as *const c_void
-								);
-			}
-		}
-    }
 }
 
 pub struct TextureKeeper {
@@ -244,8 +248,6 @@ pub struct Framebuffer {
 }
 
 impl Framebuffer {
-	
-
     pub unsafe fn bind(&self) {
         gl::BindFramebuffer(gl::FRAMEBUFFER, self.name);
         gl::Viewport(0, 0, self.size.0, self.size.1);

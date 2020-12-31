@@ -114,7 +114,8 @@ pub struct UIState<'a, T> {
 	menu_chains: Vec<Vec<usize>>, //Array of array of menu ids used for nested menu traversal
 	menus: Vec<Menu<'a, T>>,
 	text_elements: Vec<UIText<'a>>,
-	programs: [GLuint; 2]
+	programs: [GLuint; 2],
+	hidden_menus: Option<Vec<usize>>
 }
 
 impl<'a, T: Copy> UIState<'a, T> {
@@ -163,7 +164,8 @@ impl<'a, T: Copy> UIState<'a, T> {
 			menu_chains: Vec::new(),
 			menus: Vec::new(),
 			text_elements: Vec::new(),
-			programs
+			programs,
+			hidden_menus: None
         }
     }
 	
@@ -199,11 +201,33 @@ impl<'a, T: Copy> UIState<'a, T> {
 		}
 	}
 
-    pub fn hide_all_menus(&mut self) {
-        for menu in self.menus.iter_mut() {
-            menu.hide(&mut self.internals);
-        }
-    }
+    fn hide_all_menus(&mut self) {
+		let mut hid_menus = Vec::new();
+        for i in 0..self.menus.len() {
+            if self.menus[i].hide(&mut self.internals) {
+				hid_menus.push(i);
+			}
+		}
+		
+		self.hidden_menus = Some(hid_menus);
+	}
+	
+	fn unhide_all_menus(&mut self) {
+		if let Some(menu_indices) = &self.hidden_menus {
+			for index in menu_indices {
+				self.menus[*index].show(&mut self.internals);
+			}
+			self.hidden_menus = None;
+		}
+	}
+
+	pub fn toggle_hide_all_menus(&mut self) {
+		if self.hidden_menus == None {
+			self.hide_all_menus();
+		} else {
+			self.unhide_all_menus();
+		}
+	}
 
 	fn hide_menu(&mut self, index: usize) { self.menus[index].hide(&mut self.internals); }
 
@@ -708,16 +732,18 @@ impl<'a, T: Copy> Menu<'a, T> {
     		let button = UIButton::new(section_id, button_bounds, self.button_commands[i]);
     		self.ids[i] = ui_internals.add_button(button);
         }
-        self.active = true;
+		self.active = true;
     }
 
-    //Remove this menu's data from the arrays of buttons and sections
-    pub fn hide(&mut self, ui_internals: &mut UIInternals<'a, T>) {
-        if !self.active { return; }
+	//Remove this menu's data from the arrays of buttons and sections
+	//Returns true if the menu was actually visible
+    pub fn hide(&mut self, ui_internals: &mut UIInternals<'a, T>) -> bool {
+        if !self.active { return false; }
 		for id in self.ids.iter() {
 			ui_internals.delete_button(*id);
         }
-        self.active = false;
+		self.active = false;
+		return true;
     }
 
     pub fn toggle(&mut self, ui_internals: &mut UIInternals<'a, T>) {
