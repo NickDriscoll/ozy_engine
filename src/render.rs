@@ -92,6 +92,7 @@ pub struct StaticGeometry {
 }
 
 //One contiguous piece of geometry
+#[derive(Clone)]
 pub struct SimpleMesh {
     pub vao: GLuint,
     pub index_count: GLint,
@@ -111,6 +112,11 @@ impl SimpleMesh {
 			origin: glm::vec4(0.0, 0.0, 0.0, 1.0),
 			texture_maps: [albedo, normal, roughness]
 		}
+	}
+
+	pub unsafe fn draw(&self) {
+        gl::BindVertexArray(self.vao);
+		gl::DrawElements(gl::TRIANGLES, self.index_count, gl::UNSIGNED_SHORT, ptr::null());
 	}
 
     pub fn from_ozy(path: &str, texture_keeper: &mut TextureKeeper, tex_params: &[(GLenum, GLenum)]) -> Self {
@@ -137,6 +143,7 @@ impl SimpleMesh {
     }
 }
 
+#[derive(Clone)]
 pub struct InstancedMesh {
     vao: GLuint,
     transform_buffer: GLuint,
@@ -160,7 +167,7 @@ impl InstancedMesh {
 			texture_maps: maps
         }
 	}
-	
+
 	pub unsafe fn from_simplemesh(s_mesh: &SimpleMesh, max_instances: usize, instanced_attribute: GLuint) -> Self {
 		Self::new(s_mesh.vao, s_mesh.index_count, max_instances, instanced_attribute, s_mesh.texture_maps)
 	}
