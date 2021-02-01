@@ -551,7 +551,9 @@ impl<'a> UIText<'a> {
 			};
 
 			section.screen_position = match self.anchor {
-                UIAnchor::LeftAligned(pos) => { pos }
+				UIAnchor::LeftAlignedRow(pos) | 
+				UIAnchor::LeftAlignedColumn(pos) |
+				UIAnchor::RightAlignedColumn(pos) => { pos }
                 UIAnchor::DeadCenter => {
 					let x_pos = (internals.window_size.0 as f32 - bounding_box.width()) / 2.0;
 					let y_pos = (internals.window_size.1 as f32 - bounding_box.height()) / 2.0;
@@ -675,6 +677,7 @@ impl<'a, T: Copy> Menu<'a, T> {
         //Submit the pause menu data
 		const BORDER_PROPORTION: f32 = 0.2;
 		const BUFFER_DISTANCE: f32 = 10.0;
+		let mut width_sum = 0.0;
 		for i in 0..self.button_labels.len() {
 			let mut section = {
 				let section = Section::new();
@@ -693,14 +696,30 @@ impl<'a, T: Copy> Menu<'a, T> {
 			let height = bounding_box.height() + 2.0 * border;
 
             let button_bounds = match self.anchor {
-                UIAnchor::LeftAligned((x, y)) => {
+				UIAnchor::LeftAlignedRow((x, y)) => {
+					let x_pos = x + width_sum;
+					let y_pos = y;
+					glyph_brush::Rectangle {
+                        min: [x_pos, y_pos],
+                        max: [x_pos + width, y_pos + height]
+                    }
+				}
+                UIAnchor::LeftAlignedColumn((x, y)) => {
                     let x_pos = x;
                     let y_pos = y + i as f32 * (height + BUFFER_DISTANCE);
                     glyph_brush::Rectangle {
                         min: [x_pos, y_pos],
                         max: [x_pos + width, y_pos + height]
                     }
-                }
+				}
+				UIAnchor::RightAlignedColumn((x, y)) => {
+					let x_pos = x - width;
+					let y_pos = y + i as f32 * (height + BUFFER_DISTANCE);
+                    glyph_brush::Rectangle {
+                        min: [x_pos, y_pos],
+                        max: [x_pos + width, y_pos + height]
+                    }
+				}
                 UIAnchor::DeadCenter => {
 					let total_menu_height = (height + BUFFER_DISTANCE) * self.button_labels.len() as f32 - BUFFER_DISTANCE;
 
@@ -725,6 +744,8 @@ impl<'a, T: Copy> Menu<'a, T> {
 			    button_bounds.min[0] + border,
 			    button_bounds.min[1] + border
 		    );
+
+			width_sum += width + BUFFER_DISTANCE;
 
 		    //Finally insert the section into the array
 		    let section_id = ui_internals.sections.insert(section);
@@ -757,7 +778,9 @@ impl<'a, T: Copy> Menu<'a, T> {
 
 //Defines the anchor point of the UI element and how that anchor is configured
 pub enum UIAnchor {
-    LeftAligned((f32, f32)),			//Parameter is the screen-space position of the top-left corner of the entire menu's bounding box
+	LeftAlignedRow((f32, f32)),
+	LeftAlignedColumn((f32, f32)),			//Parameter is the screen-space position of the top-left corner of the entire menu's bounding box
+	RightAlignedColumn((f32, f32)),
 	DeadCenter,
 	CenterTop(f32)						//Parameter is the offset from the top in pixels
 }
