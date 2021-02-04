@@ -121,7 +121,7 @@ impl OzyMesh {
     }
 }
 
-fn read_u32(file: &mut File, error_message: &str) -> Option<u32> {
+pub fn read_u32(file: &mut File, error_message: &str) -> Option<u32> {
 	let mut buffer = [0; 4];
 	match file.read_exact(&mut buffer) {
 		Ok(_) => { Some(u32::from_le_bytes(buffer)) }
@@ -132,7 +132,7 @@ fn read_u32(file: &mut File, error_message: &str) -> Option<u32> {
 	}
 }
 
-fn read_u16_data(file: &mut File, count: usize) -> Option<Vec<u16>> {
+pub fn read_u16_data(file: &mut File, count: usize) -> Option<Vec<u16>> {
 	let mut bytes = vec![0; count * mem::size_of::<u16>()];
 	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
 		println!("Error reading data from file: {}", e);
@@ -147,7 +147,7 @@ fn read_u16_data(file: &mut File, count: usize) -> Option<Vec<u16>> {
 	Some(v)
 }
 
-fn read_pascal_strings(file: &mut File, count: usize) -> Option<Vec<String>> {	
+pub fn read_pascal_strings(file: &mut File, count: usize) -> Option<Vec<String>> {	
 	let mut int_buffer = [0; 4];
 	let mut strings = Vec::with_capacity(count as usize);
 	for _ in 0..count {
