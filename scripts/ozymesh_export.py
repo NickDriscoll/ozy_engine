@@ -5,6 +5,7 @@ bl_info = {
 }
 
 import bpy
+import bmesh
 import struct
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty
@@ -46,44 +47,37 @@ class Exporter(bpy.types.Operator, ImportHelper):
         
         #Collect relevant data about meshes
         for ob in bpy.context.selected_objects:
-            print("Serializing %s" % ob.name)
-            mesh = ob.data
+            print("Serializing %s" % ob.name) 
             
             normal_matrix = ob.matrix_world.to_3x3()
             normal_matrix.invert()
             normal_matrix = normal_matrix.to_4x4()
             normal_matrix.transpose()
-            coord_transform = Matrix(((1.0, 0.0, 0.0, 0.0),
-                                      (0.0, 1.0, 0.0, 0.0),
-                                      (0.0, 0.0, 1.0, 0.0),
-                                      (0.0, 0.0, 0.0, 1.0)))
-
-            blender_to_game_world = coord_transform @ ob.matrix_world
-            normal_to_game_world = coord_transform @ normal_matrix
             
-            #Assuming there's only one UV map
-            uv_data = mesh.uv_layers[0].data
-            
-            names.append(mesh.name)
+            names.append(ob.data.name)
             
             if not ob.active_material:
-                show_message_box("\"%s\" needs to have an active material." % mesh.name, "Unable to export OzyMesh", 'ERROR')
+                show_message_box("\"%s\" needs to have an active material." % ob.data.name, "Unable to export OzyMesh", 'ERROR')
                 return { "CANCELLED" }
             texture_names.append(ob.active_material.name)
             
-            origin = blender_to_game_world @ Vector((0.0, 0.0, 0.0, 1.0))
-            origins.append((origin.x, origin.y, origin.z))
-            
+            origin = ob.matrix_world @ Vector((0.0, 0.0, 0.0, 1.0))
+            origins.append((origin.x, origin.y, origin.z))            
+
             ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
-            for face in mesh.polygons:
-                for i in face.loop_indices:
-                    loop = mesh.loops[i]
-                    pos = blender_to_game_world @ mesh.vertices[loop.vertex_index].co #Transform into world space and switch y and z axes
-                    uvs = uv_data[i].uv
+
+            #Create local triangulated mesh
+            me = bmesh.new()
+            me.from_mesh(ob.data)
+            uv_lay = me.loops.layers.uv.active
+            for face in me.calc_loop_triangles():
+                for loop in face:
+                    pos = ob.matrix_world @ loop.vert.co #Transform into world space
+                    uv = loop[uv_lay].uv
                     
-                    tangent = normal_to_game_world @ loop.tangent
-                    normal = normal_to_game_world @ loop.normal
-                    bitangent = normal_to_game_world @ loop.bitangent
+                    tangent = normal_matrix @ loop.calc_tangent()
+                    normal = normal_matrix @ -loop.calc_normal() #This has to be negated for some reason
+                    bitangent = tangent.cross(normal)
                     
                     tangent.normalize()
                     bitangent.normalize()
@@ -94,7 +88,7 @@ class Exporter(bpy.types.Operator, ImportHelper):
                                         tangent.x, tangent.y, tangent.z,
                                         bitangent.x, bitangent.y, bitangent.z,
                                         normal.x, normal.y, normal.z,
-                                        uvs.x, uvs.y)
+                                        uv.x, uv.y)
             
                     #Compute size of a single vertex
                     vertex_elements = len(potential_vertex)
@@ -105,7 +99,7 @@ class Exporter(bpy.types.Operator, ImportHelper):
                         vertex_index_map[potential_vertex] = current_index
                         index_buffer.append(current_index)
                         current_index += 1
-            geo_boundaries.append(geo_boundaries[len(geo_boundaries) - 1] + len(mesh.polygons) * 3)
+            geo_boundaries.append(geo_boundaries[len(geo_boundaries) - 1] + len(me.faces) * 3)
 
         #Write the data to a file
         filepath = self.filepath
