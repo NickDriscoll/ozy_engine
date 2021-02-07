@@ -33,6 +33,7 @@ pub struct ScreenState {
     clipping_from_view: glm::TMat4<f32>,
     clipping_from_world: glm::TMat4<f32>,
     world_from_clipping: glm::TMat4<f32>,
+	world_from_view: glm::TMat4<f32>,
     clipping_from_screen: glm::TMat4<f32>
 }
 
@@ -41,6 +42,7 @@ impl ScreenState {
         let aspect_ratio = window_size.x as f32 / window_size.y as f32;
         let clipping_from_world = clipping_from_view * view_from_world;
         let world_from_clipping = glm::affine_inverse(clipping_from_world);
+		let world_from_view = glm::affine_inverse(view_from_world);
         let clipping_from_screen = clip_from_screen(window_size);
 
         //Initialize default framebuffer
@@ -59,6 +61,7 @@ impl ScreenState {
             clipping_from_view,
             clipping_from_world,
             world_from_clipping,
+			world_from_view,
             clipping_from_screen
         }
 	}
@@ -66,11 +69,13 @@ impl ScreenState {
 	pub fn update_view(&mut self, view_from_world: glm::TMat4<f32>) {
 		let clipping_from_world = self.clipping_from_view * view_from_world;
         let world_from_clipping = glm::affine_inverse(clipping_from_world);
+		let world_from_view = glm::affine_inverse(view_from_world);
         let clipping_from_screen = clip_from_screen(self.window_size);
 		
 		self.view_from_world = view_from_world;
 		self.clipping_from_world = clipping_from_world;
 		self.world_from_clipping = world_from_clipping;
+		self.world_from_view = world_from_view;
 		self.clipping_from_screen = clipping_from_screen;
 	}
 
@@ -80,6 +85,7 @@ impl ScreenState {
 	pub fn get_clipping_from_view(&self) -> &glm::TMat4<f32> { &self.clipping_from_view }
 	pub fn get_clipping_from_world(&self) -> &glm::TMat4<f32> { &self.clipping_from_world }
 	pub fn get_world_from_clipping(&self) -> &glm::TMat4<f32> { &self.world_from_clipping }
+	pub fn get_world_from_view(&self) -> &glm::TMat4<f32> { &self.world_from_view }
 	pub fn get_clipping_from_screen(&self) -> &glm::TMat4<f32> { &self.clipping_from_screen }
 }
 
