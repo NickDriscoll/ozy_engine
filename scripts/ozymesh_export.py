@@ -5,6 +5,7 @@ bl_info = {
 }
 
 import bpy
+import bmesh
 import struct
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty
@@ -48,18 +49,18 @@ class Exporter(bpy.types.Operator, ImportHelper):
         for ob in bpy.context.selected_objects:
             print("Serializing %s" % ob.name)
             mesh = ob.data
+
+            be = bmesh.new()
+            be.from_mesh(mesh)
+            be_backup = be.copy()
+
+            bmesh.ops.triangulate(be, faces=be.faces[:], quad_method='BEAUTY', ngon_method='BEAUTY')
+            be.to_mesh(mesh)
             
             normal_matrix = ob.matrix_world.to_3x3()
             normal_matrix.invert()
             normal_matrix = normal_matrix.to_4x4()
             normal_matrix.transpose()
-            coord_transform = Matrix(((1.0, 0.0, 0.0, 0.0),
-                                      (0.0, 1.0, 0.0, 0.0),
-                                      (0.0, 0.0, 1.0, 0.0),
-                                      (0.0, 0.0, 0.0, 1.0)))
-
-            blender_to_game_world = coord_transform @ ob.matrix_world
-            normal_to_game_world = coord_transform @ normal_matrix
             
             #Assuming there's only one UV map
             uv_data = mesh.uv_layers[0].data
@@ -71,19 +72,21 @@ class Exporter(bpy.types.Operator, ImportHelper):
                 return { "CANCELLED" }
             texture_names.append(ob.active_material.name)
             
-            origin = blender_to_game_world @ Vector((0.0, 0.0, 0.0, 1.0))
+            origin = ob.matrix_world @ Vector((0.0, 0.0, 0.0, 1.0))
             origins.append((origin.x, origin.y, origin.z))
             
-            ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
+            #Have Blender calculate the tangent/bitangent/normal vectors
+            mesh.calc_tangents()
+
             for face in mesh.polygons:
                 for i in face.loop_indices:
                     loop = mesh.loops[i]
-                    pos = blender_to_game_world @ mesh.vertices[loop.vertex_index].co #Transform into world space and switch y and z axes
+                    pos = ob.matrix_world @ mesh.vertices[loop.vertex_index].co #Transform into world space and switch y and z axes
                     uvs = uv_data[i].uv
                     
-                    tangent = normal_to_game_world @ loop.tangent
-                    normal = normal_to_game_world @ loop.normal
-                    bitangent = normal_to_game_world @ loop.bitangent
+                    tangent = normal_matrix @ loop.tangent
+                    normal = normal_matrix @ loop.normal
+                    bitangent = normal_matrix @ loop.bitangent
                     
                     tangent.normalize()
                     bitangent.normalize()
@@ -106,6 +109,9 @@ class Exporter(bpy.types.Operator, ImportHelper):
                         index_buffer.append(current_index)
                         current_index += 1
             geo_boundaries.append(geo_boundaries[len(geo_boundaries) - 1] + len(mesh.polygons) * 3)
+
+        #Restore the mesh to its original state
+        be_backup.to_mesh(mesh)
 
         #Write the data to a file
         filepath = self.filepath
