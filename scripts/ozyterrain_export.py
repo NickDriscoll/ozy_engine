@@ -126,12 +126,16 @@ class TerrainExporter(bpy.types.Operator, ImportHelper):
         print("Finished exporting collision mesh.")
         return {'FINISHED'}
 
+def menu_func(self, context):
+    self.layout.operator(Exporter.bl_idname)
 
 def register():    
     bpy.utils.register_class(TerrainExporter)
+    bpy.types.TOPBAR_MT_file_export.append(menu_func)
     
 def unregister():
     bpy.utils.unregister_class(TerrainExporter)
+    bpy.types.TOPBAR_MT_file_export.remove(menu_func)
     
 if __name__ == '__main__':
     register()
