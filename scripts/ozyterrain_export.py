@@ -127,7 +127,7 @@ class TerrainExporter(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 
 def menu_func(self, context):
-    self.layout.operator(Exporter.bl_idname)
+    self.layout.operator(TerrainExporter.bl_idname)
 
 def register():    
     bpy.utils.register_class(TerrainExporter)
