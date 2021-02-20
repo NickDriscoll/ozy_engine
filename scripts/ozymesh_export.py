@@ -53,16 +53,12 @@ class Exporter(bpy.types.Operator, ImportHelper):
             normal_matrix.invert()
             normal_matrix = normal_matrix.to_4x4()
             normal_matrix.transpose()
-            coord_transform = Matrix(((1.0, 0.0, 0.0, 0.0),
-                                      (0.0, 1.0, 0.0, 0.0),
-                                      (0.0, 0.0, 1.0, 0.0),
-                                      (0.0, 0.0, 0.0, 1.0)))
 
-            blender_to_game_world = coord_transform @ ob.matrix_world
-            normal_to_game_world = coord_transform @ normal_matrix
+            blender_to_game_world = ob.matrix_world
+            normal_to_game_world = normal_matrix
             
             #Assuming there's only one UV map
-            uv_data = mesh.uv_layers[0].data
+            uv_data = mesh.uv_layers.active.data
             
             names.append(mesh.name)
             
@@ -75,16 +71,19 @@ class Exporter(bpy.types.Operator, ImportHelper):
             origins.append((origin.x, origin.y, origin.z))
             
             ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
-            for face in mesh.polygons:
+            for face in mesh.polygons:                
                 for i in face.loop_indices:
+                    print("Loop index is %i" % i)
                     loop = mesh.loops[i]
-                    pos = blender_to_game_world @ mesh.vertices[loop.vertex_index].co #Transform into world space and switch y and z axes
+                    pos = blender_to_game_world @ mesh.vertices[loop.vertex_index].co
                     uvs = uv_data[i].uv
+                    print("Loop %i has uv coords (%f, %f)" % (i, uvs.x, uvs.y))
                     
                     tangent = normal_to_game_world @ loop.tangent
                     normal = normal_to_game_world @ loop.normal
                     bitangent = normal_to_game_world @ loop.bitangent
                     
+                    #Just making sure they're normalized
                     tangent.normalize()
                     bitangent.normalize()
                     normal.normalize()
@@ -94,11 +93,12 @@ class Exporter(bpy.types.Operator, ImportHelper):
                                         tangent.x, tangent.y, tangent.z,
                                         bitangent.x, bitangent.y, bitangent.z,
                                         normal.x, normal.y, normal.z,
-                                        uvs.x, -uvs.y)
+                                        uvs.x, -uvs.y)                                        
             
                     #Compute size of a single vertex
                     vertex_elements = len(potential_vertex)
                     
+                    #Check if we've already seen this vertex
                     if potential_vertex in vertex_index_map:
                         index_buffer.append(vertex_index_map[potential_vertex])
                     else:
@@ -150,11 +150,11 @@ def menu_func(self, context):
 
 def register():    
     bpy.utils.register_class(Exporter)
-    bpy.types.TOPBAR_MT_file_export.append(menu_func)
+    #bpy.types.TOPBAR_MT_file_export.append(menu_func)
 
 def unregister():
     bpy.utils.unregister_class(Exporter)
-    bpy.types.TOPBAR_MT_file_export.remove(menu_func)
+    #bpy.types.TOPBAR_MT_file_export.remove(menu_func)
     
 if __name__ == '__main__':
     register()

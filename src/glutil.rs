@@ -314,6 +314,16 @@ pub unsafe fn bind_vector4(program: GLuint, name: &str, vector: &glm::TVec4<f32>
 	gl::Uniform4fv(uniform_location(program, name), 1, &[vector.x, vector.y, vector.z, vector.w] as *const GLfloat);
 }
 
+pub unsafe fn bind_vector3(program: GLuint, name: &str, vector: &glm::TVec3<f32>) {
+	gl::UseProgram(program);
+	gl::Uniform3fv(uniform_location(program, name), 1, &[vector.x, vector.y, vector.z] as *const GLfloat);
+}
+
+pub unsafe fn bind_vector2(program: GLuint, name: &str, vector: &glm::TVec2<f32>) {
+	gl::UseProgram(program);
+	gl::Uniform2fv(uniform_location(program, name), 1, &[vector.x, vector.y] as *const GLfloat);
+}
+
 pub unsafe fn bind_int(program: GLuint, name: &str, number: GLint) {
 	gl::UseProgram(program);
 	gl::Uniform1i(uniform_location(program, name), number);

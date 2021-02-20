@@ -712,8 +712,8 @@ impl<'a, T: Copy> Menu<'a, T> {
                         max: [x_pos + width, y_pos + height]
                     }
 				}
-				UIAnchor::RightAlignedColumn((x, y)) => {
-					let x_pos = x - width;
+				UIAnchor::RightAlignedColumn((x_offset, y)) => {
+					let x_pos = ui_internals.window_size.0 as f32 - x_offset - width;
 					let y_pos = y + i as f32 * (height + BUFFER_DISTANCE);
                     glyph_brush::Rectangle {
                         min: [x_pos, y_pos],

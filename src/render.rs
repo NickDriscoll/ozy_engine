@@ -28,6 +28,7 @@ fn clip_from_screen(screen_size: glm::TVec2<u32>) -> glm::TMat4<f32> {
 pub struct ScreenState {
     window_size: glm::TVec2<u32>,
     aspect_ratio: f32,
+	fov_radians: f32,
 	default_framebuffer: Framebuffer,
 	view_from_world: glm::TMat4<f32>,
     clipping_from_view: glm::TMat4<f32>,
@@ -38,7 +39,8 @@ pub struct ScreenState {
 }
 
 impl ScreenState {
-    pub fn new(window_size: glm::TVec2<u32>, view_from_world: glm::TMat4<f32>, clipping_from_view: glm::TMat4<f32>) -> Self {
+    pub fn new(window_size: glm::TVec2<u32>, view_from_world: glm::TMat4<f32>, fov_radians: f32, near: f32, far: f32) -> Self {
+		let clipping_from_view = glm::perspective_zo(window_size.x as f32 / window_size.y as f32, fov_radians, near, far);
         let aspect_ratio = window_size.x as f32 / window_size.y as f32;
         let clipping_from_world = clipping_from_view * view_from_world;
         let world_from_clipping = glm::affine_inverse(clipping_from_world);
@@ -56,6 +58,7 @@ impl ScreenState {
         ScreenState {
             window_size,
             aspect_ratio,
+			fov_radians,
 			default_framebuffer,
 			view_from_world,
             clipping_from_view,
@@ -79,6 +82,7 @@ impl ScreenState {
 		self.clipping_from_screen = clipping_from_screen;
 	}
 
+	pub fn get_fov_radians(&self) -> f32 { self.fov_radians }
 	pub fn get_window_size(&self) -> glm::TVec2<u32> { self.window_size }
 	pub fn get_aspect_ratio(&self) -> f32 { self.aspect_ratio }
 	pub fn get_view_from_world(&self) -> &glm::TMat4<f32> { &self.view_from_world }
@@ -129,7 +133,7 @@ impl SimpleMesh {
         match io::OzyMesh::load(path) {
             Some(meshdata) => unsafe {
                 let vao = glutil::create_vertex_array_object(&meshdata.vertex_array.vertices, &meshdata.vertex_array.indices, &meshdata.vertex_array.attribute_offsets);
-                let count = meshdata.geo_boundaries[1] as GLint;
+                let count = meshdata.geo_boundaries[meshdata.geo_boundaries.len() - 1] as GLint;
                 let origin = meshdata.origins[0];
                 let albedo = texture_keeper.fetch_texture(&meshdata.texture_names[0], "albedo", tex_params, ColorSpace::Gamma);
                 let normal = texture_keeper.fetch_texture(&meshdata.texture_names[0], "normal", tex_params, ColorSpace::Linear);
