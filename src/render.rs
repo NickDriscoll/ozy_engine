@@ -366,6 +366,79 @@ impl RenderTarget {
 			texture: color_tex
 		}
     }
+	
+	pub unsafe fn new_multisampled(size: (GLint, GLint), samples: GLint) -> Self {
+        let mut fbo = 0;
+		let mut texs = [0; 2];
+		gl::GenFramebuffers(1, &mut fbo);
+		gl::GenTextures(2, &mut texs[0]);
+		let (color_tex, depth_tex) = (texs[0], texs[1]);
+
+		//Initialize the color buffer
+		gl::BindTexture(gl::TEXTURE_2D_MULTISAMPLE, color_tex);
+		gl::TexImage2DMultisample(
+			gl::TEXTURE_2D_MULTISAMPLE,
+			samples,
+			gl::SRGB8_ALPHA8,
+			size.0,
+			size.1,
+			gl::TRUE
+		);
+		let params = [
+			(gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE),
+			(gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE),
+			(gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR),
+			(gl::TEXTURE_MAG_FILTER, gl::NEAREST)
+		];
+        glutil::apply_texture_parameters(&params);
+	    //gl::GenerateMipmap(gl::TEXTURE_2D);
+
+		gl::BindTexture(gl::TEXTURE_2D_MULTISAMPLE, depth_tex);
+		gl::TexImage2DMultisample(
+			gl::TEXTURE_2D_MULTISAMPLE,
+			samples,
+			gl::DEPTH_COMPONENT,
+			size.0,
+			size.1,
+			gl::TRUE
+		);
+		let params = [
+			(gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE),
+			(gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE),
+			(gl::TEXTURE_MIN_FILTER, gl::NEAREST),
+			(gl::TEXTURE_MAG_FILTER, gl::NEAREST)
+		];
+		glutil::apply_texture_parameters(&params);
+
+		gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+		gl::FramebufferTexture2D(
+			gl::FRAMEBUFFER,
+			gl::COLOR_ATTACHMENT0,
+			gl::TEXTURE_2D_MULTISAMPLE,
+			color_tex,
+			0
+		);
+		gl::FramebufferTexture2D(
+			gl::FRAMEBUFFER,
+			gl::DEPTH_ATTACHMENT,
+			gl::TEXTURE_2D_MULTISAMPLE,
+			depth_tex,
+			0
+		);
+		gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+
+		let f_buffer = Framebuffer {
+			name: fbo,
+			size: (size.0 as GLsizei, size.1 as GLsizei),
+			clear_flags: gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT,
+			cull_face: gl::BACK
+		};
+
+		RenderTarget {
+			framebuffer: f_buffer,
+			texture: color_tex
+		}
+    }
 
     pub unsafe fn new_shadow(size: (GLint, GLint)) -> Self {
         let mut shadow_framebuffer = 0;
