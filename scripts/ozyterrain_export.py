@@ -11,6 +11,8 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty
 from mathutils import Matrix, Vector
 
+from ozy_common import *
+
 '''
 Vertex:
     ------
@@ -45,13 +47,6 @@ Face:
 '__setattr__', '__sizeof__', '__str__', '__subclasshook__', 'count', 'index']
 '''
 
-#Returns bytearray that is a u32 representing the size of inp in bytes
-def size_as_u32(inp, type_size):
-    return bytearray((len(inp) * type_size).to_bytes(4, "little"))
-
-def write_float_3d(out_file, vertex3):
-    for number in vertex3:
-        out_file.write(bytearray(struct.pack('f', number)))
 
 class TerrainExporter(bpy.types.Operator, ImportHelper):
     """Export selection to OzyMesh file (.ozy)"""      # Use this as a tooltip for menu items and buttons.
@@ -65,37 +60,35 @@ class TerrainExporter(bpy.types.Operator, ImportHelper):
         options={'HIDDEN'}
     )
     
-    def execute(self, context):
-        ob = bpy.context.selected_objects[0]
-        
-        #Create triangulated mesh
-        me = bmesh.new()
-        me.from_mesh(ob.data)
-            
+    def execute(self, context):            
         #We just want to export all of the triangles
         vertex_index_map = {} #Elements are ((f32, f32, f32), u16)
         face_normals = []
         index_buffer = []
-            
+        
         current_index = 0
-        for face in me.calc_loop_triangles():
-            face_verts = []
-            for loop in face:
-                vertex_vector = ob.matrix_world @ Vector((loop.vert.co.x, loop.vert.co.y, loop.vert.co.z))
-                face_verts.append(vertex_vector)
-                potential_vertex = (vertex_vector.x, vertex_vector.y, vertex_vector.z)
-                if potential_vertex in vertex_index_map:
-                    index_buffer.append(vertex_index_map[potential_vertex])
-                else:
-                    vertex_index_map[potential_vertex] = current_index
-                    index_buffer.append(current_index)
-                    current_index += 1
-                    
-            edge0 = face_verts[1] - face_verts[0]
-            edge1 = face_verts[2] - face_verts[0]
-            face_normal = edge0.cross(edge1)
-            face_normal.normalize()
-            face_normals.append(face_normal)
+        for ob in bpy.context.selected_objects:
+            #Create triangulated mesh
+            me = bmesh.new()
+            me.from_mesh(ob.data)
+            for face in me.calc_loop_triangles():
+                face_verts = []
+                for loop in face:
+                    vertex_vector = ob.matrix_world @ Vector((loop.vert.co.x, loop.vert.co.y, loop.vert.co.z))
+                    face_verts.append(vertex_vector)
+                    potential_vertex = (vertex_vector.x, vertex_vector.y, vertex_vector.z)
+                    if potential_vertex in vertex_index_map:
+                        index_buffer.append(vertex_index_map[potential_vertex])
+                    else:
+                        vertex_index_map[potential_vertex] = current_index
+                        index_buffer.append(current_index)
+                        current_index += 1
+                        
+                edge0 = face_verts[1] - face_verts[0]
+                edge1 = face_verts[2] - face_verts[0]
+                face_normal = edge0.cross(edge1)
+                face_normal.normalize()
+                face_normals.append(face_normal)
         
         #Write the data to a file
         filepath = self.filepath

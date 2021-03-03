@@ -10,18 +10,7 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty
 from mathutils import Matrix, Vector
 
-def len_as_u32(inp, type_size):
-    return bytearray((len(inp) * type_size).to_bytes(4, "little"))
-
-def write_pascal_strings(file, strs):
-    for s in strs:
-        file.write(len_as_u32(s, 1))
-        file.write(bytearray(s, 'utf-8'))
-        
-def show_message_box(message = "", title = "Message Box", icon = 'INFO'):
-    def draw(self, context):
-        self.layout.label(text=message)
-    bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
+from ozy_common import *
 
 class Exporter(bpy.types.Operator, ImportHelper):
     """Export selection to OzyMesh file (.ozy)"""      # Use this as a tooltip for menu items and buttons.
@@ -49,6 +38,7 @@ class Exporter(bpy.types.Operator, ImportHelper):
             print("Serializing %s" % ob.name)
             mesh = ob.data
             
+            #Figure out the normal matrix
             normal_matrix = ob.matrix_world.to_3x3()
             normal_matrix.invert()
             normal_matrix = normal_matrix.to_4x4()
@@ -73,11 +63,9 @@ class Exporter(bpy.types.Operator, ImportHelper):
             ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
             for face in mesh.polygons:                
                 for i in face.loop_indices:
-                    print("Loop index is %i" % i)
                     loop = mesh.loops[i]
                     pos = blender_to_game_world @ mesh.vertices[loop.vertex_index].co
                     uvs = uv_data[i].uv
-                    print("Loop %i has uv coords (%f, %f)" % (i, uvs.x, uvs.y))
                     
                     tangent = normal_to_game_world @ loop.tangent
                     normal = normal_to_game_world @ loop.normal
