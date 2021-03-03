@@ -62,60 +62,7 @@ class TerrainExporter(bpy.types.Operator, ImportHelper):
     
     def execute(self, context):            
         #We just want to export all of the triangles
-        vertex_index_map = {} #Elements are ((f32, f32, f32), u16)
-        face_normals = []
-        index_buffer = []
-        
-        current_index = 0
-        for ob in bpy.context.selected_objects:
-            #Create triangulated mesh
-            me = bmesh.new()
-            me.from_mesh(ob.data)
-            for face in me.calc_loop_triangles():
-                face_verts = []
-                for loop in face:
-                    vertex_vector = ob.matrix_world @ Vector((loop.vert.co.x, loop.vert.co.y, loop.vert.co.z))
-                    face_verts.append(vertex_vector)
-                    potential_vertex = (vertex_vector.x, vertex_vector.y, vertex_vector.z)
-                    if potential_vertex in vertex_index_map:
-                        index_buffer.append(vertex_index_map[potential_vertex])
-                    else:
-                        vertex_index_map[potential_vertex] = current_index
-                        index_buffer.append(current_index)
-                        current_index += 1
-                        
-                edge0 = face_verts[1] - face_verts[0]
-                edge1 = face_verts[2] - face_verts[0]
-                face_normal = edge0.cross(edge1)
-                face_normal.normalize()
-                face_normals.append(face_normal)
-        
-        #Write the data to a file
-        filepath = self.filepath
-        output = open(filepath, "wb")
-        
-        #Write the size of the vertices in the vertex block
-        output.write(size_as_u32(vertex_index_map, 12))
-        
-        #Write the vertex block
-        for vertex in list(vertex_index_map):
-            write_float_3d(output, vertex)
-        
-        #Write the size of the indices in the index block
-        output.write(size_as_u32(index_buffer, 2))
-        
-        #Write the index block
-        for index in index_buffer:
-            output.write(index.to_bytes(2, "little"))
-                
-        #Write the size of the face normals
-        output.write(size_as_u32(face_normals, 12))
-        
-        #Write the face normals
-        for normal in face_normals:
-            write_float_3d(output, normal)
-        
-        output.close()
+        save_ozyterrain(self.filepath)
         print("Finished exporting collision mesh.")
         return {'FINISHED'}
 
