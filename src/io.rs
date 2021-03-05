@@ -1,6 +1,6 @@
 use std::mem;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Error, Read};
 use std::string::String;
 use crate::structs::*;
 
@@ -24,27 +24,27 @@ impl OzyMesh {
         };
     
         //Read how many meshes are in the file
-        let mesh_count = match read_u32(&mut model_file, "Error reading mesh_count.") {
-            Some(count) => { count as usize }
-            None => { return None; }
+        let mesh_count = match read_u32(&mut model_file) {
+            Ok(count) => { count as usize }
+            Err(_) => { return None; }
         };
     
         //Read the geo boundaries
         let geo_boundaries = match read_u16_data(&mut model_file, 1 + mesh_count) {
-            Some(v) => { v }
-            None => { return None; }
+            Ok(v) => { v }
+            Err(_) => { return None; }
         };
     
         //Read the individual mesh names
         let names = match read_pascal_strings(&mut model_file, mesh_count) {
-            Some(v) => { v }
-            None => { return None; }
+            Ok(v) => { v }
+            Err(_) => { return None; }
         };
     
         //Read the material names
         let texture_names = match read_pascal_strings(&mut model_file, mesh_count) {
-            Some(v) => { v }
-            None => { return None; }
+            Ok(v) => { v }
+            Err(_) => { return None; }
         };
     
         //Read the individual mesh origins
@@ -75,9 +75,9 @@ impl OzyMesh {
         };
     
         //The length of the vertex data section of the file, in bytes
-        let vertices_size = match read_u32(&mut model_file, "Error reading vertex_count") {
-            Some(n) => { n }
-            None => { return None; }
+        let vertices_size = match read_u32(&mut model_file) {
+            Ok(n) => { n }
+            Err(_) => { return None; }
         };
     
         let vertices = {
@@ -95,14 +95,14 @@ impl OzyMesh {
             v
         };
         
-        let index_count = match read_u32(&mut model_file, "Error reading index_count") {
-            Some(n) => { (n / mem::size_of::<u16>() as u32) as usize }
-            None => { return None; }
+        let index_count = match read_u32(&mut model_file) {
+            Ok(n) => { (n / mem::size_of::<u16>() as u32) as usize }
+            Err(_) => { return None; }
         };
         
         let indices = match read_u16_data(&mut model_file, index_count) {
-            Some(n) => { n }
-            None => { return None; }
+            Ok(n) => { n }
+            Err(_) => { return None; }
         };
     
         let vertex_array = VertexArray {
@@ -121,22 +121,18 @@ impl OzyMesh {
     }
 }
 
-pub fn read_u32(file: &mut File, error_message: &str) -> Option<u32> {
+pub fn read_u32(file: &mut File) -> Result<u32, Error> {
 	let mut buffer = [0; 4];
 	match file.read_exact(&mut buffer) {
-		Ok(_) => { Some(u32::from_le_bytes(buffer)) }
-		Err(e) => {
-			println!("{}: {}", error_message, e);
-			None
-		}
+		Ok(_) => { Ok(u32::from_le_bytes(buffer)) }
+		Err(e) => { Err(e) }
 	}
 }
 
-pub fn read_u16_data(file: &mut File, count: usize) -> Option<Vec<u16>> {
+pub fn read_u16_data(file: &mut File, count: usize) -> Result<Vec<u16>, Error> {
 	let mut bytes = vec![0; count * mem::size_of::<u16>()];
 	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
-		println!("Error reading data from file: {}", e);
-		return None;
+        return Err(e);
 	}
 
 	let mut v = Vec::with_capacity(count);
@@ -144,34 +140,45 @@ pub fn read_u16_data(file: &mut File, count: usize) -> Option<Vec<u16>> {
 		let b = [bytes[i], bytes[i + 1]];
 		v.push(u16::from_le_bytes(b));
 	}
-	Some(v)
+	Ok(v)
 }
 
-pub fn read_pascal_strings(file: &mut File, count: usize) -> Option<Vec<String>> {	
+pub fn read_f32_data(file: &mut File, count: usize) -> Result<Vec<f32>, Error> {
+	let mut bytes = vec![0; count * mem::size_of::<f32>()];
+	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
+        return Err(e);
+	}
+
+	let mut v = Vec::with_capacity(count);
+	for i in (0..bytes.len()).step_by(mem::size_of::<f32>()) {
+		let b = [bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]];
+		v.push(f32::from_le_bytes(b));
+	}
+	Ok(v)    
+}
+
+pub fn read_pascal_strings(file: &mut File, count: usize) -> Result<Vec<String>, Error> {	
 	let mut int_buffer = [0; 4];
 	let mut strings = Vec::with_capacity(count as usize);
 	for _ in 0..count {
 		//Read the name's length
 		if let Err(e) = file.read_exact(&mut int_buffer) {
-			println!("Error reading string length from file: {}", e);
-			return None;
+			return Err(e);
 		}
 
 		//Read the contents of the string into a buffer
 		let mut utf8_buffer = vec![0; u32::from_le_bytes(int_buffer) as usize];
 		if let Err(e) = file.read_exact(&mut utf8_buffer) {
-			println!("Error reading string contents from file: {}", e);
-			return None;
+			return Err(e);
 		}
 
 		//Turn buffer of utf-8 bytes into String
 		match String::from_utf8(utf8_buffer) {
 			Ok(name) => { strings.push(name); }
 			Err(e) => {
-				println!("Couldn't decode string: {}", e);
-				return None;
+				panic!("read_pascal_strings(): Error when making String from utf8: {}", e);
 			}
 		}
 	}
-	Some(strings)
+	Ok(strings)
 }
