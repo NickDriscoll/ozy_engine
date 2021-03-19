@@ -364,7 +364,7 @@ pub unsafe fn bind_int(program: GLuint, name: &str, number: GLint) {
 
 pub unsafe fn bind_float(program: GLuint, name: &str, number: GLfloat) {
 	gl::UseProgram(program);
-	gl::Uniform1f(, number);
+	gl::Uniform1f(uniform_location(program, name), number);
 }
 
 pub unsafe fn bind_float_array(program: GLuint, name: &str, array: &[f32]) {
