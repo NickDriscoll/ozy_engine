@@ -166,7 +166,7 @@ pub struct InstancedMesh {
 impl InstancedMesh {
     pub unsafe fn new(vao: GLuint, index_count: GLint, max_instances: usize, instanced_attribute: GLuint, maps: [GLuint; TEXTURE_MAP_COUNT]) -> Self {
 		//Create GPU buffer for instanced matrices
-		let transform_buffer = create_transform_buffer(vao, max_instances, instanced_attribute);        
+		let transform_buffer = glutil::create_instanced_transform_buffer(vao, max_instances, instanced_attribute);        
         
         InstancedMesh {
             vao,
@@ -206,31 +206,6 @@ impl InstancedMesh {
 			}
 		}
     }
-}
-
-unsafe fn create_transform_buffer(vao: GLuint, max_instances: usize, instanced_attribute: GLuint) -> GLuint {
-	gl::BindVertexArray(vao);
-
-	let mut b = 0;
-	gl::GenBuffers(1, &mut b);
-	gl::BindBuffer(gl::ARRAY_BUFFER, b);
-	gl::BufferData(gl::ARRAY_BUFFER, (max_instances * FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizeiptr, ptr::null(), gl::DYNAMIC_DRAW);
-
-	//Attach this buffer to the shell_mesh vao
-	//We have to individually bind each column of the matrix as a different vec4 vertex attribute
-	for i in 0..4 {
-		let attribute_index = instanced_attribute + i;
-		gl::VertexAttribPointer(attribute_index,
-								4,
-								gl::FLOAT,
-								gl::FALSE,
-								(FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizei,
-								(i * 4 * mem::size_of::<GLfloat>() as GLuint) as *const c_void);
-		gl::EnableVertexAttribArray(attribute_index);
-		gl::VertexAttribDivisor(attribute_index, 1);
-	}
-
-	b
 }
 
 pub struct TextureKeeper {

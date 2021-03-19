@@ -274,6 +274,34 @@ pub fn image_data_from_path(path: &str, space: ColorSpace) -> ImageData {
 	}
 }
 
+//Create and attaches an instanced array buffer of 4x4 homogenous matrices of size max_instances to vao at instanced_attribute
+//Returns the name of the new buffer
+pub unsafe fn create_instanced_transform_buffer(vao: GLuint, max_instances: usize, instanced_attribute: GLuint) -> GLuint {
+	const FLOATS_PER_TRANSFORM: usize = 16;
+	gl::BindVertexArray(vao);
+
+	let mut b = 0;
+	gl::GenBuffers(1, &mut b);
+	gl::BindBuffer(gl::ARRAY_BUFFER, b);
+	gl::BufferData(gl::ARRAY_BUFFER, (max_instances * FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizeiptr, ptr::null(), gl::DYNAMIC_DRAW);
+
+	//Attach this buffer to the shell_mesh vao
+	//We have to individually bind each column of the matrix as a different vec4 vertex attribute
+	for i in 0..4 {
+		let attribute_index = instanced_attribute + i;
+		gl::VertexAttribPointer(attribute_index,
+								4,
+								gl::FLOAT,
+								gl::FALSE,
+								(FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizei,
+								(i * 4 * mem::size_of::<GLfloat>() as GLuint) as *const c_void);
+		gl::EnableVertexAttribArray(attribute_index);
+		gl::VertexAttribDivisor(attribute_index, 1);
+	}
+
+	b
+}
+
 //Apllies the list of parameters to the current bound 2D texture
 pub unsafe fn apply_texture_parameters(parameters: &[(GLenum, GLenum)]) {
 	for param in parameters {
@@ -309,6 +337,11 @@ pub unsafe fn bind_matrix4(program: GLuint, name: &str, matrix: &glm::TMat4<f32>
 	gl::UniformMatrix4fv(uniform_location(program, name), 1, gl::FALSE, &glm::value_ptr(matrix)[0]);
 }
 
+pub unsafe fn bind_matrix4_array(program: GLuint, name: &str, matrices: &[glm::TMat4<f32>]) {
+	gl::UseProgram(program);
+	gl::UniformMatrix4fv(uniform_location(program, name), matrices.len() as GLint, gl::FALSE, &glm::value_ptr(&matrices[0])[0]);
+}
+
 pub unsafe fn bind_vector4(program: GLuint, name: &str, vector: &glm::TVec4<f32>) {
 	gl::UseProgram(program);
 	gl::Uniform4fv(uniform_location(program, name), 1, &[vector.x, vector.y, vector.z, vector.w] as *const GLfloat);
@@ -331,5 +364,10 @@ pub unsafe fn bind_int(program: GLuint, name: &str, number: GLint) {
 
 pub unsafe fn bind_float(program: GLuint, name: &str, number: GLfloat) {
 	gl::UseProgram(program);
-	gl::Uniform1f(uniform_location(program, name), number);
+	gl::Uniform1f(, number);
+}
+
+pub unsafe fn bind_float_array(program: GLuint, name: &str, array: &[f32]) {
+	gl::UseProgram(program);
+	gl::Uniform1fv(uniform_location(program, name), array.len() as GLint, &array[0] as *const GLfloat);
 }
