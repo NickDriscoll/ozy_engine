@@ -32,6 +32,10 @@ impl<T> OptionVec<T> {
 		}
 	}
 
+	pub fn as_slice(&self) -> &[Option<T>] {
+		self.optionvec.as_slice()
+	}
+
 	pub fn with_capacity(size: usize) -> Self {
 		OptionVec {
 			optionvec: Vec::with_capacity(size),
