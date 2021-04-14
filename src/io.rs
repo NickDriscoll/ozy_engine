@@ -6,10 +6,7 @@ use crate::structs::*;
 
 pub struct OzyMesh {
 	pub vertex_array: VertexArray,
-	pub names: Vec<String>,
-	pub texture_names: Vec<String>,
-	pub geo_boundaries: Vec<u16>,			//[0, a, b, c, ..., indices.length - 1]
-	pub origins: Vec<glm::TVec4<f32>>
+	pub texture_name: String
 }
 
 impl OzyMesh {
@@ -23,55 +20,10 @@ impl OzyMesh {
             }
         };
     
-        //Read how many meshes are in the file
-        let mesh_count = match read_u32(&mut model_file) {
-            Ok(count) => { count as usize }
-            Err(_) => { return None; }
-        };
-    
-        //Read the geo boundaries
-        let geo_boundaries = match read_u16_data(&mut model_file, 1 + mesh_count) {
-            Ok(v) => { v }
-            Err(_) => { return None; }
-        };
-    
-        //Read the individual mesh names
-        let names = match read_pascal_strings(&mut model_file, mesh_count) {
-            Ok(v) => { v }
-            Err(_) => { return None; }
-        };
-    
         //Read the material names
-        let texture_names = match read_pascal_strings(&mut model_file, mesh_count) {
-            Ok(v) => { v }
+        let texture_name = match read_pascal_strings(&mut model_file, 1) {
+            Ok(v) => { v[0].clone() }
             Err(_) => { return None; }
-        };
-    
-        //Read the individual mesh origins
-        let origins = {
-            const VECTOR_COMPONENTS: usize = 3;			//Each origin is three floats (x, y, z) and I didn't like having a magic number
-            let mut bytes = vec![0; mesh_count as usize * VECTOR_COMPONENTS * mem::size_of::<f32>()];
-            if let Err(e) = model_file.read_exact(bytes.as_mut_slice()) {
-                println!("Error reading vertex data from file: {}", e);
-                return None;
-            }
-    
-            let mut v = Vec::with_capacity(VECTOR_COMPONENTS * mesh_count);
-            let origin_size = mem::size_of::<f32>() * VECTOR_COMPONENTS;
-            for i in 0..mesh_count {
-                let mut components = [0.0; VECTOR_COMPONENTS];
-                for j in 0..VECTOR_COMPONENTS {
-                    let component = f32::from_le_bytes([bytes[i * origin_size + j * mem::size_of::<f32>()],
-                                                    bytes[i * origin_size + j * mem::size_of::<f32>() + 1],
-                                                    bytes[i * origin_size + j * mem::size_of::<f32>() + 2],
-                                                    bytes[i * origin_size + j * mem::size_of::<f32>() + 3]
-                    ]);
-                    components[j] = component;
-                }
-                
-                v.push(glm::vec4(components[0], components[1], components[2], 1.0));
-            }
-            v
         };
     
         //The length of the vertex data section of the file, in bytes
@@ -113,10 +65,7 @@ impl OzyMesh {
     
         Some(OzyMesh {
             vertex_array,
-            names,
-            texture_names,
-            geo_boundaries,
-            origins
+            texture_name
         })
     }
 }

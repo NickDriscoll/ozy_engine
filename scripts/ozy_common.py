@@ -25,10 +25,7 @@ def show_message_box(message = "", title = "Message Box", icon = 'INFO'):
 def save_ozymesh(ob, model_transform, filepath):
     vertex_index_map = {} #Dict elements are (vertex, u16)
     index_buffer = []
-    names = []
-    texture_names = []
-    origins = []
-    geo_boundaries = [0]
+    texture_name = ""
     current_index = 0
     
     mesh = ob.data
@@ -45,15 +42,10 @@ def save_ozymesh(ob, model_transform, filepath):
     #Assuming there's only one UV map
     uv_data = mesh.uv_layers.active.data
     
-    names.append(mesh.name)
-    
     if not ob.active_material:
         show_message_box("\"%s\" needs to have an active material." % mesh.name, "Unable to export OzyMesh", 'ERROR')
         return False
-    texture_names.append(ob.active_material.name)
-    
-    origin = blender_to_game_world @ Vector((0.0, 0.0, 0.0, 1.0))
-    origins.append((origin.x, origin.y, origin.z))
+    texture_name = ob.active_material.name
     
     ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
     for face in mesh.polygons:
@@ -88,28 +80,12 @@ def save_ozymesh(ob, model_transform, filepath):
                 vertex_index_map[potential_vertex] = current_index
                 index_buffer.append(current_index)
                 current_index += 1
-    geo_boundaries.append(geo_boundaries[len(geo_boundaries) - 1] + len(mesh.polygons) * 3)
 
     #Write the data to a file
     output = open(filepath, "wb")
-        
-    #Write the number of meshes
-    output.write(size_as_u32(names, 1))
-        
-    #Write the geo_boundaries array
-    u16_buffers = [geo_boundaries]
-    for buf in u16_buffers:
-        for element in buf:
-            output.write(bytearray(element.to_bytes(2, "little")))
             
-    #Write the names as pascal-strings
-    write_pascal_strings(output, names)
-    write_pascal_strings(output, texture_names)
-        
-    #Write the origins of the meshes
-    for origin in origins:
-        for i in range(0, 3):
-            output.write(bytearray(struct.pack('f', origin[i])))
+    #Write the texture name as a pascal string
+    write_pascal_strings(output, [texture_name])
         
     #Write the vertex data
     output.write(size_as_u32(vertex_index_map, vertex_elements * 4))
@@ -132,6 +108,34 @@ def save_ozyterrain(filepath, collection):
     index_buffer = []
         
     current_index = 0
+
+    for col in collection.children:
+        for ob in col.objects:
+            if ob.type != "MESH":
+                continue
+                
+            #Create triangulated mesh
+            me = bmesh.new()
+            me.from_mesh(ob.data)
+            for face in me.calc_loop_triangles():
+                face_verts = []
+                for loop in face:
+                    vertex_vector = ob.matrix_world @ Vector((loop.vert.co.x, loop.vert.co.y, loop.vert.co.z, 1.0))
+                    face_verts.append(Vector((vertex_vector.x, vertex_vector.y, vertex_vector.z)))
+                    potential_vertex = (vertex_vector.x, vertex_vector.y, vertex_vector.z)
+                    if potential_vertex in vertex_index_map:
+                        index_buffer.append(vertex_index_map[potential_vertex])
+                    else:
+                        vertex_index_map[potential_vertex] = current_index
+                        index_buffer.append(current_index)
+                        current_index += 1
+                            
+                edge0 = face_verts[1] - face_verts[0]
+                edge1 = face_verts[2] - face_verts[0]
+                face_normal = edge0.cross(edge1)
+                face_normal.normalize()
+                face_normals.append(face_normal)
+
     for ob in collection.objects:
         if ob.type != "MESH":
             continue
