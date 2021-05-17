@@ -70,6 +70,12 @@ impl<T> OptionVec<T> {
 		}
 	}
 
+	pub fn replace(&mut self, index: usize, item: T) {
+		if let Some(_) = self.optionvec[index] {
+			self.optionvec[index] = Some(item);
+		}
+	} 
+
 	pub fn delete(&mut self, index: usize) {
 		if let Some(_) = self.optionvec[index] {
 			self.count -= 1;
@@ -90,21 +96,6 @@ impl<T> OptionVec<T> {
 
 	pub fn get_mut_element(&mut self, index: usize) -> Option<&mut T> {
 		self.optionvec[index].as_mut()
-	}
-
-	pub fn two_mut_refs(&mut self, index1: usize, index2: usize) -> (&mut Option<T>, &mut Option<T>) {
-		//Deternime which index is larger
-		if index1 < index2 {
-			let (first, second) = self.optionvec.split_at_mut(index1 + 1);
-			let first_len = first.len();
-
-			(&mut first[first_len - 1], &mut second[index2 - index1 - 1])
-		} else {			
-			let (first, second) = self.optionvec.split_at_mut(index2 + 1);
-			let first_len = first.len();
-			
-			(&mut second[index1 - index2 - 1], &mut first[first_len - 1])
-		}
 	}
 
 	pub fn iter(&self) -> Iter<Option<T>> {

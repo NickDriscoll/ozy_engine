@@ -112,7 +112,7 @@ impl TextureKeeper {
         }
     }
 
-    pub fn fetch_texture(&mut self, name: &str, map_type: &str, tex_params: &[(GLenum, GLenum)], color_space: glutil::ColorSpace) -> GLuint {
+    pub fn fetch_texture(&mut self, name: &str, map_type: &str, tex_params: &[(GLenum, GLenum)], color_space: ColorSpace) -> GLuint {
 		let texture_path = format!("materials/{}/{}.png", name, map_type);
 		match self.map.get(&texture_path) {
 			Some(t) => { *t }

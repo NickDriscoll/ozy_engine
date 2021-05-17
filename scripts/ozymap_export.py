@@ -58,8 +58,8 @@ class MapExporter(bpy.types.Operator, ImportHelper):
             current_index = 0
 
             #We're just making all of these objects into one big VAO
-            for i in ob_indices:
-                ob = map_collection.objects[i]
+            for j in ob_indices:
+                ob = map_collection.objects[j]
                 mesh = ob.data
                 model_transform = ob.matrix_world.copy()
                 

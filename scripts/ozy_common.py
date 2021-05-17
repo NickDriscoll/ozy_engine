@@ -101,45 +101,21 @@ def save_ozymesh(ob, model_transform, filepath):
     output.close()
     return True
 
-def save_ozyterrain(filepath, collection):
-    #We just want to export all of the triangles
-    vertex_index_map = {} #Elements are ((f32, f32, f32), u16)
-    face_normals = []
-    index_buffer = []
-        
-    current_index = 0
+class TerrainData:
+    def __init__(self):
+        self.vertex_index_map = {}
+        self.index_buffer = []
+        self.face_normals = []
+        self.current_index = 0
 
-    for col in collection.children:
-        for ob in col.objects:
-            if ob.type != "MESH":
-                continue
-                
-            #Create triangulated mesh
-            me = bmesh.new()
-            me.from_mesh(ob.data)
-            for face in me.calc_loop_triangles():
-                face_verts = []
-                for loop in face:
-                    vertex_vector = ob.matrix_world @ Vector((loop.vert.co.x, loop.vert.co.y, loop.vert.co.z, 1.0))
-                    face_verts.append(Vector((vertex_vector.x, vertex_vector.y, vertex_vector.z)))
-                    potential_vertex = (vertex_vector.x, vertex_vector.y, vertex_vector.z)
-                    if potential_vertex in vertex_index_map:
-                        index_buffer.append(vertex_index_map[potential_vertex])
-                    else:
-                        vertex_index_map[potential_vertex] = current_index
-                        index_buffer.append(current_index)
-                        current_index += 1
-                            
-                edge0 = face_verts[1] - face_verts[0]
-                edge1 = face_verts[2] - face_verts[0]
-                face_normal = edge0.cross(edge1)
-                face_normal.normalize()
-                face_normals.append(face_normal)
-
-    for ob in collection.objects:
+def append_collision_to_buffers(col, terrain_data):
+    for ob in col.objects:
         if ob.type != "MESH":
             continue
-            
+
+        if "non-collidable" in ob:
+            continue
+                
         #Create triangulated mesh
         me = bmesh.new()
         me.from_mesh(ob.data)
@@ -149,41 +125,49 @@ def save_ozyterrain(filepath, collection):
                 vertex_vector = ob.matrix_world @ Vector((loop.vert.co.x, loop.vert.co.y, loop.vert.co.z, 1.0))
                 face_verts.append(Vector((vertex_vector.x, vertex_vector.y, vertex_vector.z)))
                 potential_vertex = (vertex_vector.x, vertex_vector.y, vertex_vector.z)
-                if potential_vertex in vertex_index_map:
-                    index_buffer.append(vertex_index_map[potential_vertex])
+                if potential_vertex in terrain_data.vertex_index_map:
+                    terrain_data.index_buffer.append(terrain_data.vertex_index_map[potential_vertex])
                 else:
-                    vertex_index_map[potential_vertex] = current_index
-                    index_buffer.append(current_index)
-                    current_index += 1
-                        
+                    terrain_data.vertex_index_map[potential_vertex] = terrain_data.current_index
+                    terrain_data.index_buffer.append(terrain_data.current_index)
+                    terrain_data.current_index += 1
+                            
             edge0 = face_verts[1] - face_verts[0]
             edge1 = face_verts[2] - face_verts[0]
             face_normal = edge0.cross(edge1)
             face_normal.normalize()
-            face_normals.append(face_normal)
+            terrain_data.face_normals.append(face_normal)
+
+def save_ozyterrain(filepath, collection):
+    terrain_data = TerrainData()
+
+    for col in collection.children:
+        append_collision_to_buffers(col, terrain_data)
+
+    append_collision_to_buffers(collection, terrain_data)
         
     #Write the data to a file
     output = open(filepath, "wb")
         
     #Write the size of the vertices in the vertex block
-    output.write(size_as_u32(vertex_index_map, 12))
+    output.write(size_as_u32(terrain_data.vertex_index_map, 12))
         
     #Write the vertex block
-    for vertex in list(vertex_index_map):
+    for vertex in list(terrain_data.vertex_index_map):
         write_vector(output, vertex)
         
     #Write the size of the indices in the index block
-    output.write(size_as_u32(index_buffer, 2))
+    output.write(size_as_u32(terrain_data.index_buffer, 2))
         
     #Write the index block
-    for index in index_buffer:
+    for index in terrain_data.index_buffer:
         output.write(index.to_bytes(2, "little"))
                 
     #Write the size of the face normals
-    output.write(size_as_u32(face_normals, 12))
+    output.write(size_as_u32(terrain_data.face_normals, 12))
         
     #Write the face normals
-    for normal in face_normals:
+    for normal in terrain_data.face_normals:
         write_vector(output, normal)
         
     output.close()

@@ -1,6 +1,7 @@
 use gl::types::*;
 use std::ffi::CString;
 use std::str;
+use std::io;
 use std::io::Read;
 use std::fs::File;
 use std::{mem, process, ptr};
@@ -82,45 +83,51 @@ pub unsafe fn compile_shader(shadertype: GLenum, source: &str) -> GLuint {
 	shader
 }
 
-pub unsafe fn compile_shader_from_file(shadertype: GLenum, path: &str) -> GLuint {
+pub unsafe fn compile_shader_from_file(shadertype: GLenum, path: &str) -> Result<GLuint, io::Error> {
 	let mut source = String::new();
 
 	match File::open(path) {
 		Ok(mut file) => {
 			file.read_to_string(&mut source).unwrap();
 		}
-		Err(e) => {
-			println!("{}\npath: \"{}\"", e, path);
-			process::exit(-1);
-		}
+		Err(e) => { return Err(e); }
 	}
-	compile_shader(shadertype, &source)
+	Ok(compile_shader(shadertype, &source))
 }
 
-pub unsafe fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> GLuint {
-	let vertexshader = compile_shader_from_file(gl::VERTEX_SHADER, vertex_name);
-	let fragmentshader = compile_shader_from_file(gl::FRAGMENT_SHADER, fragment_name);
+pub fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> Result<GLuint, io::Error> {
+	unsafe {
+		let vertexshader = match compile_shader_from_file(gl::VERTEX_SHADER, vertex_name) {
+			Ok(shader) => { shader }
+			Err(e) => { return Err(e); }
+		};
 
-	//Link shaders
-	let shader_progam = gl::CreateProgram();
-	gl::AttachShader(shader_progam, vertexshader);
-	gl::AttachShader(shader_progam, fragmentshader);
-	gl::LinkProgram(shader_progam);
+		let fragmentshader = match compile_shader_from_file(gl::FRAGMENT_SHADER, fragment_name) {
+			Ok(shader) => { shader }
+			Err(e) => { return Err(e); }
+		};
 
-	//Check for errors
-	let mut success = gl::FALSE as GLint;
-	let mut log_size = 0;
-	gl::GetProgramiv(shader_progam, gl::LINK_STATUS, &mut success);
-	gl::GetProgramiv(shader_progam, gl::INFO_LOG_LENGTH, &mut log_size);
-	let mut infolog = vec![0; log_size as usize];
-	if success != gl::TRUE as GLint {
-		gl::GetProgramInfoLog(shader_progam, log_size, ptr::null_mut(), infolog.as_mut_ptr() as *mut GLchar);
-		shader_compilation_error(&infolog);
+		//Link shaders
+		let shader_progam = gl::CreateProgram();
+		gl::AttachShader(shader_progam, vertexshader);
+		gl::AttachShader(shader_progam, fragmentshader);
+		gl::LinkProgram(shader_progam);
+
+		//Check for errors
+		let mut success = gl::FALSE as GLint;
+		let mut log_size = 0;
+		gl::GetProgramiv(shader_progam, gl::LINK_STATUS, &mut success);
+		gl::GetProgramiv(shader_progam, gl::INFO_LOG_LENGTH, &mut log_size);
+		let mut infolog = vec![0; log_size as usize];
+		if success != gl::TRUE as GLint {
+			gl::GetProgramInfoLog(shader_progam, log_size, ptr::null_mut(), infolog.as_mut_ptr() as *mut GLchar);
+			shader_compilation_error(&infolog);
+		}
+
+		gl::DeleteShader(vertexshader);
+		gl::DeleteShader(fragmentshader);
+		Ok(shader_progam)
 	}
-
-	gl::DeleteShader(vertexshader);
-	gl::DeleteShader(fragmentshader);
-	shader_progam
 }
 
 fn shader_compilation_error(infolog: &[u8]) {
