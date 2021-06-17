@@ -183,7 +183,7 @@ pub fn skybox_cube_vao() -> GLuint {
 	];
 	const INDICES: [u16; 36] = [
 		//Front
-		0u16, 1, 2,
+		0, 1, 2,
 		3, 2, 1,
         
         //Left

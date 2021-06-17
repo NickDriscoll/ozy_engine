@@ -45,6 +45,8 @@ def save_ozymesh(ob, model_transform, filepath):
     if not ob.active_material:
         show_message_box("\"%s\" needs to have an active material." % mesh.name, "Unable to export OzyMesh", 'ERROR')
         return False
+    else:
+
     texture_name = ob.active_material.name
     
     ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
@@ -83,7 +85,7 @@ def save_ozymesh(ob, model_transform, filepath):
 
     #Write the data to a file
     output = open(filepath, "wb")
-            
+
     #Write the texture name as a pascal string
     write_pascal_strings(output, [texture_name])
         
@@ -119,7 +121,12 @@ def append_collision_to_buffers(col, terrain_data):
         #Create triangulated mesh
         me = bmesh.new()
         me.from_mesh(ob.data)
-        for face in me.calc_loop_triangles():
+        triangles = me.calc_loop_triangles()
+        num_tris = len(triangles)
+        if num_tris > 100:
+            print("%s is kind of large to be a collision mesh at %i tris." % (ob.name, num_tris))
+
+        for face in triangles:
             face_verts = []
             for loop in face:
                 vertex_vector = ob.matrix_world @ Vector((loop.vert.co.x, loop.vert.co.y, loop.vert.co.z, 1.0))

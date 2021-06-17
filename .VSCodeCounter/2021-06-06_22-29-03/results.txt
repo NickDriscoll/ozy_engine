@@ -1,0 +1,61 @@
+Date : 2021-06-06 22:29:03
+Directory : c:\Users\Nick\Desktop\game_projects\ozy_engine
+Total : 31 files,  2248 codes, 154 comments, 449 blanks, all 2851 lines
+
+Languages
++----------+------------+------------+------------+------------+------------+
+| language | files      | code       | comment    | blank      | total      |
++----------+------------+------------+------------+------------+------------+
+| Rust     |          9 |      1,684 |         95 |        274 |      2,053 |
+| Python   |          4 |        338 |         46 |         96 |        480 |
+| GLSL     |         17 |        215 |         12 |         77 |        304 |
+| TOML     |          1 |         11 |          1 |          2 |         14 |
++----------+------------+------------+------------+------------+------------+
+
+Directories
++------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                         | files      | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                            |         31 |      2,248 |        154 |        449 |      2,851 |
+| scripts                                                                      |          4 |        338 |         46 |         96 |        480 |
+| shaders                                                                      |         17 |        215 |         12 |         77 |        304 |
+| src                                                                          |          9 |      1,684 |         95 |        274 |      2,053 |
++------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| filename                                                                     | language | code       | comment    | blank      | total      |
++------------------------------------------------------------------------------+----------+------------+------------+------------+------------+
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\Cargo.toml                    | TOML     |         11 |          1 |          2 |         14 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\scripts\ozy_common.py         | Python   |        120 |         19 |         39 |        178 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\scripts\ozymap_export.py      | Python   |        118 |         24 |         34 |        176 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\scripts\ozymesh_export.py     | Python   |         33 |          2 |         10 |         45 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\scripts\ozyterrain_export.py  | Python   |         67 |          1 |         13 |         81 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\edit.frag             | GLSL     |          5 |          0 |          2 |          7 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\gaussian_blur.frag    | GLSL     |         20 |          2 |          6 |         28 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\glyph.frag            | GLSL     |          8 |          0 |          4 |         12 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\glyph.vert            | GLSL     |         12 |          0 |          4 |         16 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\mapped.frag           | GLSL     |         40 |          7 |         12 |         59 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\mapped.vert           | GLSL     |         22 |          0 |          6 |         28 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\mapped_instanced.vert | GLSL     |         23 |          2 |          8 |         33 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\postprocessing.frag   | GLSL     |         16 |          1 |          5 |         22 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\postprocessing.vert   | GLSL     |          8 |          0 |          3 |         11 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\prim.frag             | GLSL     |          7 |          0 |          4 |         11 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\prim.vert             | GLSL     |          9 |          0 |          4 |         13 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\prim_instanced.vert   | GLSL     |         10 |          0 |          4 |         14 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\shadow.frag           | GLSL     |          3 |          0 |          1 |          4 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\shadow.vert           | GLSL     |          6 |          0 |          3 |          9 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\shadow_instanced.vert | GLSL     |         11 |          0 |          4 |         15 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\ui_button.frag        | GLSL     |          6 |          0 |          3 |          9 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\shaders\ui_button.vert        | GLSL     |          9 |          0 |          4 |         13 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\glutil.rs                 | Rust     |        338 |         15 |         50 |        403 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\init.rs                   | Rust     |         12 |          2 |          3 |         17 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\io.rs                     | Rust     |        109 |          6 |         18 |        133 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\lib.rs                    | Rust     |         10 |          0 |          1 |         11 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\prims.rs                  | Rust     |        153 |         24 |         34 |        211 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\render.rs                 | Rust     |        320 |          6 |         38 |        364 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\routines.rs               | Rust     |          3 |          0 |          3 |          6 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\structs.rs                | Rust     |         92 |          4 |         20 |        116 |
+| c:\Users\Nick\Desktop\game_projects\ozy_engine\src\ui.rs                     | Rust     |        647 |         38 |        107 |        792 |
+| Total                                                                        |          |      2,248 |        154 |        449 |      2,851 |
++------------------------------------------------------------------------------+----------+------------+------------+------------+------------+

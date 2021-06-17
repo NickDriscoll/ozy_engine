@@ -109,7 +109,7 @@ class MapExporter(bpy.types.Operator, ImportHelper):
                             index_buffer.append(current_index)
                             current_index += 1
 
-            #Write record this ozymesh in the lvl file
+            #record this ozymesh in the lvl file
             ozyname = "%s_%s_terrain.ozy" % (level_name, mat)
             filename = "%s/models/%s" % (directory, ozyname)
             write_pascal_strings(map_file, [ozyname])

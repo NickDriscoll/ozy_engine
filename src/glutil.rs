@@ -245,6 +245,28 @@ pub fn image_data_from_path(path: &str, space: ColorSpace) -> ImageData {
 				internal_format
 			}
 		}
+		Ok(DynamicImage::ImageRgba16(im)) => {
+			let internal_format = match space {
+				ColorSpace::Linear => { gl::RGBA8 }
+				ColorSpace::Gamma => { gl::SRGB8_ALPHA8 }
+			};
+
+			let width = im.width();
+			let height = im.height();
+			let raw = im.into_raw();
+			let mut rawu8 = vec![0u8; raw.len()];
+			for i in 0..raw.len() {
+				rawu8[i] = raw[i] as u8;
+			}
+
+			ImageData {
+				data: rawu8,
+				width: width as GLint,
+				height: height as GLint,
+				format: gl::RGBA,
+				internal_format
+			}
+		}
 		Ok(DynamicImage::ImageLuma8(im)) => {
 			let width = im.width();
 			let height = im.height();
@@ -287,10 +309,12 @@ pub unsafe fn create_instanced_transform_buffer(vao: GLuint, max_instances: usiz
 	const FLOATS_PER_TRANSFORM: usize = 16;
 	gl::BindVertexArray(vao);
 
+	let data = vec![0.0f32; max_instances * 16];
 	let mut b = 0;
 	gl::GenBuffers(1, &mut b);
 	gl::BindBuffer(gl::ARRAY_BUFFER, b);
 	gl::BufferData(gl::ARRAY_BUFFER, (max_instances * FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizeiptr, ptr::null(), gl::DYNAMIC_DRAW);
+	gl::BufferData(gl::ARRAY_BUFFER, (max_instances * FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizeiptr, &data[0] as *const f32 as *const c_void, gl::DYNAMIC_DRAW);
 
 	//Attach this buffer to the shell_mesh vao
 	//We have to individually bind each column of the matrix as a different vec4 vertex attribute
