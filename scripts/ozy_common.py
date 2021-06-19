@@ -22,43 +22,67 @@ def show_message_box(message = "", title = "Message Box", icon = 'INFO'):
         self.layout.label(text=message)
     bpy.context.window_manager.popup_menu(draw, title = title, icon = icon)
 
-def save_ozymesh(ob, model_transform, filepath):
-    vertex_index_map = {} #Dict elements are (vertex, u16)
-    index_buffer = []
-    texture_name = ""
-    current_index = 0
-    
-    mesh = ob.data
-            
+def get_base_color(ob, index):
+    mat = ob.material_slots[index].material
+    principled = next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    return principled.inputs["Base Color"]
+
+#Recursive helper for get_color_buffer()
+def color_map_rec(ob, map):
+    for i in range(0, len(ob.material_slots)):
+        base_color = get_base_color(ob, i)
+        color = (base_color.default_value[0], base_color.default_value[1], base_color.default_value[2], base_color.default_value[3])
+        val = "%s%i" % (ob.name, i)
+        if color in map:
+            map[color].append(val)
+        else:
+            map[color] = [val]
+
+    #Recursively call this on all children
+    for child in ob.children:
+        color_map_rec(child, map)
+
+#Returns a map of colors belonging to this object and its children
+def get_color_map(ob):
+    map = {}
+    color_map_rec(ob, map)
+    return map
+
+def add_mesh_to_vertex_array(mesh, model_transform, color_map, vertex_index_map, index_buffer, current_index):
     #Figure out the normal matrix
     normal_matrix = model_transform.to_3x3()
     normal_matrix.invert()
     normal_matrix = normal_matrix.to_4x4()
     normal_matrix.transpose()
 
-    blender_to_game_world = model_transform
-    normal_to_game_world = normal_matrix
-    
-    #Assuming there's only one UV map
-    uv_data = mesh.uv_layers.active.data
-    
-    if not ob.active_material:
-        show_message_box("\"%s\" needs to have an active material." % mesh.name, "Unable to export OzyMesh", 'ERROR')
-        return False
-    else:
-
-    texture_name = ob.active_material.name
-    
-    ob.data.calc_tangents() #Have blender calculate the tangent and normal vectors
+    if mesh.uv_layers.active:
+        mesh.calc_tangents()
+        
+    print("\"%s\" has %i faces" % (ob.name, len(mesh.polygons)))
     for face in mesh.polygons:
         for i in face.loop_indices:
             loop = mesh.loops[i]
-            pos = blender_to_game_world @ mesh.vertices[loop.vertex_index].co
-            uvs = uv_data[i].uv
+            pos = model_transform @ mesh.vertices[loop.vertex_index].co
             
-            tangent = normal_to_game_world @ loop.tangent
-            normal = normal_to_game_world @ loop.normal
-            bitangent = normal_to_game_world @ loop.bitangent
+            if len(color_map) > 0:
+                color_count = len(color_map)
+                
+                color_index = -1
+                val = "%s%i" % (ob.name, face.material_index)
+                for i, (key, value) in enumerate(color_map.items()):
+                    if val in value:
+                        color_index = i
+                        break
+                
+                u = 1.0 / (2.0 * color_count) + color_index / color_count
+                uvs = Vector((u, 0.5))
+            else:
+                uv_data = mesh.uv_layers.active.data
+                uvs = uv_data[i].uv
+            
+            tangent = normal_matrix @ loop.tangent
+            normal = normal_matrix @ loop.normal
+            bitangent = normal_matrix @ loop.bitangent
             
             #Just making sure they're normalized
             tangent.normalize()
@@ -82,12 +106,64 @@ def save_ozymesh(ob, model_transform, filepath):
                 vertex_index_map[potential_vertex] = current_index
                 index_buffer.append(current_index)
                 current_index += 1
+    return current_index
+
+def write_vertex_array_rec(ob, model_transform, color_map, vertex_index_map, index_buffer, current_index):
+    #Get a copy of the object with all modifiers applied
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    ob_copy = ob.evaluated_get(depsgraph)
+    mesh = ob_copy.data
+
+    current_index = add_mesh_to_vertex_array(mesh, model_transform, color_map, vertex_index_map, index_buffer, current_index)        
+    #Base case is when len(ob.children) == 0        
+    for child in ob.children:
+        current_index = write_vertex_array_rec(child, model_transform, color_map, vertex_index_map, index_buffer, current_index)
+        
+    return current_index
+
+def save_ozymesh(ob, model_transform, filepath):
+    vertex_index_map = {} #Dict elements are (vertex, u16)
+    index_buffer = []
+    color_map = {}
+    texture_name = ""
+    current_index = 0
+    vertex_elements = 14    #The number of floats in a single vertex
+    
+    if not ob.active_material:
+        show_message_box("\"%s\" needs to have an active material." % mesh.name, "Unable to export OzyMesh", 'ERROR')
+        return False
+    
+    #We only set one of the color_map/texture_name based on what kind of materials this model uses
+    base_color = get_base_color(ob, 0)
+    if len(base_color.links) == 0:
+        print("Color is solid")
+        color_map = get_color_map(ob) #Use original object here bc copy doesn't keep children        
+    else:
+        print("Color is from texture")
+        texture_name = ob.active_material.name
+        #Assuming there's only one UV map
+        uv_data = mesh.uv_layers.active.data
+    
+    write_vertex_array_rec(ob, model_transform, color_map, vertex_index_map, index_buffer, current_index)
 
     #Write the data to a file
     output = open(filepath, "wb")
 
-    #Write the texture name as a pascal string
-    write_pascal_strings(output, [texture_name])
+    if len(color_map) == 0:
+        #Write zero byte
+        output.write((0).to_bytes(1, "little"))
+        
+        #Write the material name as a pascal string
+        write_pascal_strings(output, [texture_name])
+    else:
+        #Write number of colors
+        output.write((len(color_map)).to_bytes(1, "little"))
+        
+        #Write the colors one after the other as normalized RGBA f32 values
+        for color in color_map:
+            for i in range(0, len(color)):
+                output.write(bytearray(struct.pack('f', color[i])))
+        
         
     #Write the vertex data
     output.write(size_as_u32(vertex_index_map, vertex_elements * 4))
@@ -96,8 +172,9 @@ def save_ozymesh(ob, model_transform, filepath):
             output.write(bytearray(struct.pack('f', vertex[i])))
                 
     #Write the index data
-    output.write(size_as_u32(index_buffer, 2))    
+    output.write(size_as_u32(index_buffer, 2))
     for index in index_buffer:
+        #print(index)
         output.write(index.to_bytes(2, "little"))        
             
     output.close()

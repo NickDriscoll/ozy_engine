@@ -62,7 +62,7 @@ class MapExporter(bpy.types.Operator, ImportHelper):
                 ob = map_collection.objects[j]
                 mesh = ob.data
                 model_transform = ob.matrix_world.copy()
-                
+
                 #Figure out the normal matrix
                 normal_matrix = model_transform.to_3x3()
                 normal_matrix.invert()
@@ -121,6 +121,8 @@ class MapExporter(bpy.types.Operator, ImportHelper):
             output = open(filename, "wb")
 
             #Write the material name as a pascal string
+            #Write zero byte
+            output.write((0).to_bytes(1, "little"))
             write_pascal_strings(output, [mat])
                 
             #Write the vertex data

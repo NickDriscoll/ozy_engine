@@ -6,11 +6,15 @@ use crate::structs::*;
 
 pub struct OzyMesh {
 	pub vertex_array: VertexArray,
-	pub texture_name: String
+	pub texture_name: String,
+    pub colors: Vec<f32>
 }
 
 impl OzyMesh {
     pub fn load(path: &str) -> Option<Self> {
+        let mut texture_name = String::new();
+        let mut colors = vec![];
+
         //Open the file
         let mut model_file = match File::open(path) {
             Ok(file) => { file }
@@ -19,12 +23,34 @@ impl OzyMesh {
                 return None;
             }
         };
-    
-        //Read the material names
-        let texture_name = match read_pascal_strings(&mut model_file, 1) {
-            Ok(v) => { v[0].clone() }
-            Err(_) => { return None; }
+
+        //Check how many solid colors there are
+        //If 0, it means this model uses textures
+        let color_count = match read_u8(&mut model_file) {
+            Ok(count) => { count as usize }
+            Err(e) => {
+                println!("{}", e);
+                return None;
+            }
         };
+
+        //Branching on whether or not the model is textured or uses solid colors
+        if color_count == 0 {
+            //Read the material name
+            texture_name = match read_pascal_strings(&mut model_file, 1) {
+                Ok(v) => { v[0].clone() }
+                Err(_) => { return None; }
+            };
+        } else {
+            //Read the colors into a Vec
+            colors = match read_f32_data(&mut model_file, color_count * 4) {
+                Ok(data_block) => { data_block }
+                Err(e) => {
+                    println!("Error reading color data: {}", e);
+                    return None;
+                }
+            };
+        }
     
         //The length of the vertex data section of the file, in bytes
         let vertices_size = match read_u32(&mut model_file) {
@@ -65,9 +91,18 @@ impl OzyMesh {
     
         Some(OzyMesh {
             vertex_array,
-            texture_name
+            texture_name,
+            colors
         })
     }
+}
+
+pub fn read_u8(file: &mut File) -> Result<u8, Error> {
+    let mut n = [0];
+    match file.read_exact(&mut n) {
+        Ok(_) => { Ok(u8::from_le_bytes(n)) }
+        Err(e) => { Err(e) }
+    }    
 }
 
 pub fn read_u32(file: &mut File) -> Result<u32, Error> {
