@@ -200,8 +200,10 @@ pub unsafe fn create_vertex_array_object(vertices: &[f32], indices: &[u16], attr
 	vao
 }
 
-pub unsafe fn load_texture(path: &str, parameters: &[(GLenum, GLenum)], color_space: ColorSpace) -> GLuint {
-	load_texture_from_data(image_data_from_path(path, color_space), parameters)
+pub fn load_texture(path: &str, parameters: &[(GLenum, GLenum)], color_space: ColorSpace) -> GLuint {
+	unsafe {
+		load_texture_from_data(image_data_from_path(path, color_space), parameters)
+	}
 }
 
 pub enum ColorSpace {
