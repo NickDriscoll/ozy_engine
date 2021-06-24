@@ -16,7 +16,7 @@ const DEFAULT_TEX_PARAMS: [(GLenum, GLenum); 4] = [
 pub const TEXTURE_MAP_COUNT: usize = 3;      //[albedo, normal, roughness]
 const FLOATS_PER_TRANSFORM: usize = 16;
 
-fn clip_from_screen(screen_size: glm::TVec2<u32>) -> glm::TMat4<f32> {
+pub fn clip_from_screen(screen_size: glm::TVec2<u32>) -> glm::TMat4<f32> {
 	glm::mat4(
 		2.0 / screen_size.x as f32, 0.0, 0.0, -1.0,
 		0.0, -(2.0 / screen_size.y as f32), 0.0, 1.0,

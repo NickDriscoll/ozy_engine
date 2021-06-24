@@ -42,7 +42,7 @@ impl OzyMesh {
                 Err(_) => { return None; }
             };
         } else {
-            //Read the colors into a Vec
+            //Read the color f32s into a Vec
             colors = match read_f32_data(&mut model_file, color_count * 4) {
                 Ok(data_block) => { data_block }
                 Err(e) => {
