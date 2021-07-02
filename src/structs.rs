@@ -1,6 +1,23 @@
 use gl::types::*;
 use std::slice::{Iter, IterMut};
 use std::ops::{Index};
+use std::time::{Duration, Instant};
+
+pub struct FrameTimer {
+	pub frame_count: u64,
+	pub last_frame_instant: Instant,
+	pub elapsed_time: f32
+}
+
+impl FrameTimer {
+	pub fn new() -> Self {
+		FrameTimer {
+			frame_count: 0,
+			last_frame_instant: Instant::now(),
+			elapsed_time: 0.0
+		}
+	}
+}
 
 #[derive(Debug)]
 pub struct VertexArray {
