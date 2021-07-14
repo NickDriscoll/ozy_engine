@@ -22,6 +22,11 @@ impl LineSegment {
     }
 }
 
+pub struct Ray {
+    pub origin: glm::TVec3<f32>,
+    pub direction: glm::TVec3<f32>
+}
+
 //An infinite plane as defined by a point on the plane and a vector normal to the plane
 pub struct Plane {
     pub point: glm::TVec3<f32>,
@@ -210,20 +215,20 @@ pub fn robust_point_in_triangle(test_point: &glm::TVec3<f32>, tri: &Triangle) ->
     dot1 > lower && dot1 < upper && dot2 > lower && dot2 < upper
 }
 
-pub fn ray_hit_plane(ray_origin: &glm::TVec3<f32>, ray_direction: &glm::TVec3<f32>, plane: &Plane) -> Option<(f32, glm::TVec3<f32>)> {
+pub fn ray_hit_plane(ray: &Ray, plane: &Plane) -> Option<(f32, glm::TVec3<f32>)> {
     //Pre-compute the denominator to avoid divide-by-zero
-    //Denominator of zero means that the ray is parallel to the plane, hence no intersection
-    let denominator = glm::dot(&ray_direction, &plane.normal);
+    //Denominator of zero means that the ray is parallel to the plane, hence no intersection and no solution
+    let denominator = glm::dot(&ray.direction, &plane.normal);
     if denominator == 0.0 { return None; }
 
     //Compute ray-plane intersection
-    let t = glm::dot(&(plane.point - ray_origin), &plane.normal) / denominator;
-    let intersection = ray_origin + t * ray_direction;
+    let t = glm::dot(&(plane.point - ray.origin), &plane.normal) / denominator;
+    let intersection = ray.origin + t * ray.direction;
     Some((t, intersection))
 }
 
 //Returns the first intersection point between a ray and terrain mesh
-pub fn ray_hit_terrain(terrain: &Terrain, ray_origin: &glm::TVec3<f32>, ray_direction: &glm::TVec3<f32>) -> Option<(f32, glm::TVec3<f32>)> {
+pub fn ray_hit_terrain(terrain: &Terrain, ray: &Ray) -> Option<(f32, glm::TVec3<f32>)> {
     let mut smallest_t = f32::INFINITY;
     let mut closest_intersection = None;
     for i in (0..terrain.indices.len()).step_by(3) {
@@ -232,7 +237,7 @@ pub fn ray_hit_terrain(terrain: &Terrain, ray_origin: &glm::TVec3<f32>, ray_dire
         let normal = terrain.face_normals[i / 3];
         let plane = Plane::new(triangle.a, normal);
 
-        let (t, intersection) = match ray_hit_plane(&ray_origin, &ray_direction, &plane) {
+        let (t, intersection) = match ray_hit_plane(&ray, &plane) {
             Some(hit) => { hit }
             None => { continue; }
         };
