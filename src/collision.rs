@@ -22,6 +22,7 @@ impl LineSegment {
     }
 }
 
+#[derive(Debug)]
 pub struct Ray {
     pub origin: glm::TVec3<f32>,
     pub direction: glm::TVec3<f32>
@@ -331,4 +332,34 @@ pub fn projected_point_on_plane(point: &glm::TVec3<f32>, plane: &Plane) -> (f32,
 //Midpoint between two points in 3D
 pub fn midpoint(p0: &glm::TVec3<f32>, p1: &glm::TVec3<f32>) -> glm::TVec3<f32> {
     0.5 * (p0 + p1)
+}
+
+pub fn spheres_collide(s1: &Sphere, s2: &Sphere) -> bool {
+    glm::distance(&s1.focus, &s2.focus) < s1.radius + s2.radius
+}
+
+//Returns the vector to add to the position of the actor to resolve the collision
+pub fn triangle_collide_sphere(actor_sphere: &Sphere, triangle: &Triangle, triangle_sphere: &Sphere) -> glm::TVec3<f32> {
+    let triangle_plane = Plane::new(
+        triangle.a,
+        triangle.normal
+    );
+
+    if spheres_collide(&actor_sphere, &triangle_sphere) {
+        let (dist, point_on_plane) = projected_point_on_plane(&actor_sphere.focus, &triangle_plane);
+        if f32::abs(dist) < actor_sphere.radius && robust_point_in_triangle(&point_on_plane, &triangle) {
+            triangle.normal * (actor_sphere.radius - dist)
+        } else {                            
+            //Check if the sphere is hitting an edge
+            let (best_dist, best_point) = closest_point_on_triangle(&actor_sphere.focus, &triangle);
+
+            if best_dist < actor_sphere.radius {
+                glm::normalize(&(actor_sphere.focus - best_point)) * (actor_sphere.radius - best_dist)
+            } else {
+                glm::zero()
+            }
+        }
+    } else {
+        glm::zero()
+    }
 }
