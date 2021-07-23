@@ -2,7 +2,7 @@ use gl::types::*;
 use crate::glutil;
 
 pub fn sphere_index_count(segments: usize, rings: usize) -> usize {	
-	segments * (rings - 2) * 6 + 6 * segments
+	6 * (segments * (rings - 2) + segments)
 }
 
 pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
