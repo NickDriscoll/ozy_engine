@@ -340,21 +340,37 @@ pub fn spheres_collide(s1: &Sphere, s2: &Sphere) -> bool {
 
 //Returns the vector to add to the position of the actor to resolve the collision
 pub fn triangle_collide_sphere(actor_sphere: &Sphere, triangle: &Triangle, triangle_sphere: &Sphere) -> Option<glm::TVec3<f32>> {
+    match triangle_sphere_collision_point(actor_sphere, triangle, triangle_sphere) {
+        Some((dist, point)) => {
+            if actor_sphere.focus == point {                
+                Some(glm::zero())
+            } else {
+                let flip = if dist < 0.0 { -1.0 }
+                else { 1.0 };
+
+                Some(flip * glm::normalize(&(actor_sphere.focus - point)) * (actor_sphere.radius - dist))
+            }
+        }
+        None => { None }
+    }
+}
+
+pub fn triangle_sphere_collision_point(sphere: &Sphere, triangle: &Triangle, triangle_sphere: &Sphere) -> Option<(f32, glm::TVec3<f32>)> {
     let triangle_plane = Plane::new(
         triangle.a,
         triangle.normal
     );
 
-    if spheres_collide(&actor_sphere, &triangle_sphere) {
-        let (dist, point_on_plane) = projected_point_on_plane(&actor_sphere.focus, &triangle_plane);
-        if f32::abs(dist) < actor_sphere.radius && robust_point_in_triangle(&point_on_plane, &triangle) {
-            Some(triangle.normal * (actor_sphere.radius - dist))
+    if spheres_collide(&sphere, &triangle_sphere) {
+        let (dist, point_on_plane) = projected_point_on_plane(&sphere.focus, &triangle_plane);
+        if f32::abs(dist) < sphere.radius && robust_point_in_triangle(&point_on_plane, &triangle) {
+            Some((dist, point_on_plane))
         } else {                            
             //Check if the sphere is hitting an edge
-            let (best_dist, best_point) = closest_point_on_triangle(&actor_sphere.focus, &triangle);
+            let (best_dist, best_point) = closest_point_on_triangle(&sphere.focus, &triangle);
 
-            if best_dist < actor_sphere.radius {
-                Some(glm::normalize(&(actor_sphere.focus - best_point)) * (actor_sphere.radius - best_dist))
+            if best_dist < sphere.radius {
+                Some((best_dist, best_point))
             } else {
                 None
             }

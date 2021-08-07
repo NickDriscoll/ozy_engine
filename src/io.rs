@@ -1,6 +1,6 @@
 use std::mem;
 use std::fs::File;
-use std::io::{Error, Read};
+use std::io::{Error, Read, Write};
 use std::string::String;
 use crate::structs::*;
 
@@ -113,6 +113,20 @@ pub fn read_u32(file: &mut File) -> Result<u32, Error> {
 	}
 }
 
+pub fn read_u32_data(file: &mut File, count: usize) -> Result<Vec<u32>, Error> {
+	let mut bytes = vec![0; count * mem::size_of::<u32>()];
+	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
+        return Err(e);
+	}
+
+	let mut v = Vec::with_capacity(count);
+	for i in (0..bytes.len()).step_by(mem::size_of::<u32>()) {
+		let b = [bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]];
+		v.push(u32::from_le_bytes(b));
+	}
+	Ok(v)
+}
+
 pub fn read_u16_data(file: &mut File, count: usize) -> Result<Vec<u16>, Error> {
 	let mut bytes = vec![0; count * mem::size_of::<u16>()];
 	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
@@ -165,4 +179,18 @@ pub fn read_pascal_strings(file: &mut File, count: usize) -> Result<Vec<String>,
 		}
 	}
 	Ok(strings)
+}
+
+pub fn write_pascal_strings(file: &mut File, strs: &[&str]) {
+    for i in 0..strs.len() {
+        let s = strs[i];
+        let l = s.len() as u32;
+        if let Err(e) = file.write(&u32::to_le_bytes(l)) {
+            panic!("Couldn't write pascal strings: {}", e);
+        }        
+
+        if let Err(e) = file.write(s.as_bytes()) {
+            panic!("Couldn't write pascal strings: {}", e);
+        }
+    }
 }

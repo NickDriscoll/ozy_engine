@@ -48,7 +48,12 @@ def get_color_map(ob):
     color_map_rec(ob, map)
     return map
 
-def add_mesh_to_vertex_array(mesh, model_transform, color_map, vertex_index_map, index_buffer, current_index):
+def write_vertex_array_rec(ob, model_transform, color_map, vertex_index_map, index_buffer, current_index):
+    #Get a copy of the object with all modifiers applied
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    ob_copy = ob.evaluated_get(depsgraph)
+    mesh = ob_copy.data
+            
     #Figure out the normal matrix
     normal_matrix = model_transform.to_3x3()
     normal_matrix.invert()
@@ -75,7 +80,7 @@ def add_mesh_to_vertex_array(mesh, model_transform, color_map, vertex_index_map,
                         break
                 
                 u = 1.0 / (2.0 * color_count) + color_index / color_count
-                uvs = Vector((u, 0.5))
+                uvs = Vector((u, -0.5))
             else:
                 uv_data = mesh.uv_layers.active.data
                 uvs = uv_data[i].uv
@@ -106,15 +111,7 @@ def add_mesh_to_vertex_array(mesh, model_transform, color_map, vertex_index_map,
                 vertex_index_map[potential_vertex] = current_index
                 index_buffer.append(current_index)
                 current_index += 1
-    return current_index
-
-def write_vertex_array_rec(ob, model_transform, color_map, vertex_index_map, index_buffer, current_index):
-    #Get a copy of the object with all modifiers applied
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    ob_copy = ob.evaluated_get(depsgraph)
-    mesh = ob_copy.data
-
-    current_index = add_mesh_to_vertex_array(mesh, model_transform, color_map, vertex_index_map, index_buffer, current_index)        
+        
     #Base case is when len(ob.children) == 0        
     for child in ob.children:
         current_index = write_vertex_array_rec(child, model_transform, color_map, vertex_index_map, index_buffer, current_index)
@@ -127,8 +124,9 @@ def save_ozymesh(ob, model_transform, filepath):
     color_map = {}
     texture_name = ""
     current_index = 0
-    vertex_elements = 14    #The number of floats in a single vertex
+    vertex_elements = 14    #The number of floats in a single
     
+    mesh = ob.data
     if not ob.active_material:
         show_message_box("\"%s\" needs to have an active material." % mesh.name, "Unable to export OzyMesh", 'ERROR')
         return False

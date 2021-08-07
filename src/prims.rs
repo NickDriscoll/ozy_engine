@@ -5,55 +5,10 @@ pub fn sphere_index_count(segments: usize, rings: usize) -> usize {
 	6 * (segments * (rings - 2) + segments)
 }
 
-pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
-	let attrib_offsets = [3, 3];
-	let attrib_size = {
-		let mut s = 0;
-		for att in attrib_offsets.iter() {
-			s += *att as usize;
-		}
-		s
-	};
-	let mut verts = vec![0.0; attrib_size * (segments * (rings - 1) + 2)];
+fn sphere_index_array(segments: usize, rings: usize) -> Vec<u16> {
+	//Compute sphere index data
 	let mut inds = vec![0u16; sphere_index_count(segments, rings)];
 
-	//Compute the vertices of the sphere
-	verts[0] = 0.0;
-	verts[1] = -radius;
-	verts[2] = 0.0;
-	verts[3] = 0.0;
-	verts[4] = -radius;
-	verts[5] = 0.0;
-	verts[6] = 0.0;
-	verts[7] = radius;
-	verts[8] = 0.0;
-	verts[9] = 0.0;
-	verts[10] = radius;
-	verts[11] = 0.0;
-
-	for i in 0..(rings - 1) {
-		let r = i as f32 + 1.0;
-		let phi = glm::pi::<f32>() * r / rings as f32 - glm::half_pi::<f32>();
-		for j in 0..segments {
-			let s = j as f32;
-			let theta = glm::two_pi::<f32>() * s / segments as f32;
-
-			//Compute base index of this vertex
-			let vert = attrib_size * (i * segments + j + 2);
-
-			//Write position data
-			verts[vert] = radius * f32::cos(theta) * f32::cos(phi);
-			verts[vert + 2] = radius * f32::sin(theta) * f32::cos(phi);
-			verts[vert + 1] = radius * f32::sin(phi);
-
-			//Write normal data
-			verts[vert + 3] = verts[vert];
-			verts[vert + 4] = verts[vert + 2];
-			verts[vert + 5] = verts[vert + 1];
-		}
-	}
-
-	//Compute sphere index data
 	let segs = segments as u16;
 	for i in 0..(rings - 2) {
 		let offset = i * segments;
@@ -96,6 +51,112 @@ pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
 			inds[base_index + i * 3 + 2] = (rings as u16 - 2) * segs + 2;
 		}
 	}
+
+	inds
+}
+
+pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
+	let attrib_offsets = [3, 3];
+	let attrib_size = {
+		let mut s = 0;
+		for att in attrib_offsets.iter() {
+			s += *att as usize;
+		}
+		s
+	};
+	let mut verts = vec![0.0; attrib_size * (segments * (rings - 1) + 2)];
+
+	//Compute the vertices of the sphere
+	verts[0] = 0.0;
+	verts[1] = -radius;
+	verts[2] = 0.0;
+	verts[3] = 0.0;
+	verts[4] = -radius;
+	verts[5] = 0.0;
+	verts[6] = 0.0;
+	verts[7] = radius;
+	verts[8] = 0.0;
+	verts[9] = 0.0;
+	verts[10] = radius;
+	verts[11] = 0.0;
+
+	for i in 0..(rings - 1) {
+		let r = i as f32 + 1.0;
+		let phi = glm::pi::<f32>() * r / rings as f32 - glm::half_pi::<f32>();
+		for j in 0..segments {
+			let s = j as f32;
+			let theta = glm::two_pi::<f32>() * s / segments as f32;
+
+			//Compute base index of this vertex
+			let vert = attrib_size * (i * segments + j + 2);
+
+			//Write position data
+			verts[vert] = radius * f32::cos(theta) * f32::cos(phi);
+			verts[vert + 2] = radius * f32::sin(theta) * f32::cos(phi);
+			verts[vert + 1] = radius * f32::sin(phi);
+
+			//Write normal data
+			verts[vert + 3] = verts[vert];
+			verts[vert + 4] = verts[vert + 2];
+			verts[vert + 5] = verts[vert + 1];
+		}
+	}
+
+	//Compute sphere index data
+	let inds = sphere_index_array(segments, rings);
+
+	unsafe { glutil::create_vertex_array_object(&verts, &inds, &attrib_offsets) }
+}
+
+pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize, color: [f32; 4]) -> GLuint {
+	let attrib_offsets = [3, 3];
+	let attrib_size = {
+		let mut s = 0;
+		for att in attrib_offsets.iter() {
+			s += *att as usize;
+		}
+		s
+	};
+	let mut verts = vec![0.0; attrib_size * (segments * (rings - 1) + 2)];
+
+	//Compute the vertices of the sphere
+	verts[0] = 0.0;
+	verts[1] = -radius;
+	verts[2] = 0.0;
+	verts[3] = 0.0;
+	verts[4] = -radius;
+	verts[5] = 0.0;
+	verts[10] = 0.0;
+	verts[11] = radius;
+	verts[12] = 0.0;
+	verts[13] = 0.0;
+	verts[14] = radius;
+	verts[15] = 0.0;
+
+	for i in 0..(rings - 1) {
+		let r = i as f32 + 1.0;
+		let phi = glm::pi::<f32>() * r / rings as f32 - glm::half_pi::<f32>();
+		for j in 0..segments {
+			let s = j as f32;
+			let theta = glm::two_pi::<f32>() * s / segments as f32;
+
+			//Compute base index of this vertex
+			let vert = attrib_size * (i * segments + j + 2);
+
+			//Write position data
+			verts[vert] = radius * f32::cos(theta) * f32::cos(phi);
+			verts[vert + 2] = radius * f32::sin(theta) * f32::cos(phi);
+			verts[vert + 1] = radius * f32::sin(phi);
+
+			//Write normal data			
+			verts[vert + 3] = radius * f32::cos(theta) * f32::cos(phi);
+			verts[vert + 5] = radius * f32::sin(theta) * f32::cos(phi);
+			verts[vert + 4] = radius * f32::sin(phi);
+		}
+	}
+
+	//Compute sphere index data
+	let inds = sphere_index_array(segments, rings);
 
 	unsafe { glutil::create_vertex_array_object(&verts, &inds, &attrib_offsets) }
 }

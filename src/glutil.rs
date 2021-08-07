@@ -9,6 +9,8 @@ use std::os::raw::c_void;
 use image::DynamicImage;
 use crate::structs::*;
 
+const FLOATS_PER_TRANSFORM: usize = 16;
+
 pub extern "system" fn gl_debug_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, _: *mut c_void) {
 	println!("--------------------OpenGL debug message--------------------");
 	println!("ID: {}", id);
@@ -308,18 +310,22 @@ pub fn image_data_from_path(path: &str, space: ColorSpace) -> ImageData {
 //Create and attaches an instanced array buffer of 4x4 homogenous matrices of size max_instances to vao at instanced_attribute
 //Returns the name of the new buffer
 pub unsafe fn create_instanced_transform_buffer(vao: GLuint, max_instances: usize, instanced_attribute: GLuint) -> GLuint {
-	const FLOATS_PER_TRANSFORM: usize = 16;
 	gl::BindVertexArray(vao);
 
-	let data = vec![0.0f32; max_instances * 16];
+	let data = vec![0.0f32; max_instances * FLOATS_PER_TRANSFORM];
 	let mut b = 0;
 	gl::GenBuffers(1, &mut b);
 	gl::BindBuffer(gl::ARRAY_BUFFER, b);
-	gl::BufferData(gl::ARRAY_BUFFER, (max_instances * FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizeiptr, ptr::null(), gl::DYNAMIC_DRAW);
 	gl::BufferData(gl::ARRAY_BUFFER, (max_instances * FLOATS_PER_TRANSFORM * mem::size_of::<GLfloat>()) as GLsizeiptr, &data[0] as *const f32 as *const c_void, gl::DYNAMIC_DRAW);
 
 	//Attach this buffer to the shell_mesh vao
 	//We have to individually bind each column of the matrix as a different vec4 vertex attribute
+	bind_new_transform_buffer(instanced_attribute);
+
+	b
+}
+
+pub unsafe fn bind_new_transform_buffer(instanced_attribute: GLuint) {	
 	for i in 0..4 {
 		let attribute_index = instanced_attribute + i;
 		gl::VertexAttribPointer(attribute_index,
@@ -331,8 +337,6 @@ pub unsafe fn create_instanced_transform_buffer(vao: GLuint, max_instances: usiz
 		gl::EnableVertexAttribArray(attribute_index);
 		gl::VertexAttribDivisor(attribute_index, 1);
 	}
-
-	b
 }
 
 //Apllies the list of parameters to the current bound 2D texture
