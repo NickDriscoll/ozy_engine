@@ -126,12 +126,12 @@ pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize, color: [f32;
 	verts[3] = 0.0;
 	verts[4] = -radius;
 	verts[5] = 0.0;
-	verts[10] = 0.0;
-	verts[11] = radius;
-	verts[12] = 0.0;
-	verts[13] = 0.0;
-	verts[14] = radius;
-	verts[15] = 0.0;
+	verts[6] = 0.0;
+	verts[7] = radius;
+	verts[8] = 0.0;
+	verts[9] = 0.0;
+	verts[10] = radius;
+	verts[11] = 0.0;
 
 	for i in 0..(rings - 1) {
 		let r = i as f32 + 1.0;
