@@ -48,6 +48,77 @@ def get_color_map(ob):
     color_map_rec(ob, map)
     return map
 
+class MeshData:
+    def __init__(self):
+        self.vertex_index_map = {}
+        self.index_buffer = []
+        self.color_map = {}
+        self.current_index = 0
+
+def write_object_to_mesh_data(ob, mesh_data):
+    #Get a copy of the object with all modifiers applied
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    ob_copy = ob.evaluated_get(depsgraph)
+    mesh = ob_copy.data
+    model_transform = ob_copy.matrix_world.copy()
+
+    #Figure out the normal matrix
+    normal_matrix = model_transform.to_3x3()
+    normal_matrix.invert()
+    normal_matrix = normal_matrix.to_4x4()
+    normal_matrix.transpose()
+
+    if mesh.uv_layers.active:
+        mesh.calc_tangents()
+
+    for face in mesh.polygons:
+        for i in face.loop_indices:
+            loop = mesh.loops[i]
+            pos = model_transform @ mesh.vertices[loop.vertex_index].co
+            
+            if len(mesh_data.color_map) > 0:
+                color_count = len(mesh_data.color_map)
+                
+                color_index = -1
+                val = "%s%i" % (ob.name, face.material_index)
+                for i, (key, value) in enumerate(mesh_data.color_map.items()):
+                    if val in value:
+                        color_index = i
+                        break
+                
+                u = 1.0 / (2.0 * color_count) + color_index / color_count
+                uvs = Vector((u, -0.5))
+            else:
+                uv_data = mesh.uv_layers.active.data
+                uvs = uv_data[i].uv
+            
+            tangent = normal_matrix @ loop.tangent
+            normal = normal_matrix @ loop.normal
+            bitangent = normal_matrix @ loop.bitangent
+            
+            #Just making sure they're normalized
+            tangent.normalize()
+            bitangent.normalize()
+            normal.normalize()
+            
+            #Construct the potential vertex
+            potential_vertex = (pos.x, pos.y, pos.z,
+                                tangent.x, tangent.y, tangent.z,
+                                bitangent.x, bitangent.y, bitangent.z,
+                                normal.x, normal.y, normal.z,
+                                uvs.x, -uvs.y)                                        
+            
+            #Compute size of a single vertex
+            vertex_elements = len(potential_vertex)
+                    
+            #Check if we've already seen this vertex
+            if potential_vertex in mesh_data.vertex_index_map:
+                mesh_data.index_buffer.append(mesh_data.vertex_index_map[potential_vertex])
+            else:
+                mesh_data.vertex_index_map[potential_vertex] = mesh_data.current_index
+                mesh_data.index_buffer.append(mesh_data.current_index)
+                mesh_data.current_index += 1
+
 def write_vertex_array_rec(ob, model_transform, color_map, vertex_index_map, index_buffer, current_index):
     #Get a copy of the object with all modifiers applied
     depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -189,9 +260,6 @@ def append_collision_to_buffers(col, terrain_data):
     for ob in col.objects:
         if ob.type != "MESH":
             continue
-
-        if "non-collidable" in ob:
-            continue
                 
         #Create triangulated mesh
         me = bmesh.new()
@@ -220,14 +288,22 @@ def append_collision_to_buffers(col, terrain_data):
             face_normal.normalize()
             terrain_data.face_normals.append(face_normal)
 
+def collection_to_terrain_data(collection, terrain_data):
+    for col in collection.children:
+        append_collision_to_buffers(col, terrain_data)
+    append_collision_to_buffers(collection, terrain_data)
+
 def save_ozyterrain(filepath, collection):
     terrain_data = TerrainData()
 
     for col in collection.children:
         append_collision_to_buffers(col, terrain_data)
-
     append_collision_to_buffers(collection, terrain_data)
         
+    #Write the data to a file
+    write_ozyterrain_file(filepath, terrain_data)
+
+def write_ozyterrain_file(filepath, terrain_data):
     #Write the data to a file
     output = open(filepath, "wb")
         

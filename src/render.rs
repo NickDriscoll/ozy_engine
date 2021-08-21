@@ -117,7 +117,7 @@ impl TextureKeeper {
 		match self.map.get(&texture_path) {
 			Some(t) => { *t }
 			None => {
-				let name = unsafe { glutil::load_texture(&texture_path, tex_params, color_space) };
+				let name = glutil::load_texture(&texture_path, tex_params, color_space);
 				self.map.insert(texture_path, name);
 				name
 			}

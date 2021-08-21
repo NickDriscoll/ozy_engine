@@ -108,7 +108,7 @@ pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
 	unsafe { glutil::create_vertex_array_object(&verts, &inds, &attrib_offsets) }
 }
 
-pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize, color: [f32; 4]) -> GLuint {
+pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
 	let attrib_offsets = [3, 3];
 	let attrib_size = {
 		let mut s = 0;
