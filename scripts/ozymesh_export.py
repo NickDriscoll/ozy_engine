@@ -1,5 +1,5 @@
 bl_info = {
-    "name" : "OzyMesh exporter",
+    "name" : "OzyMesh MeshExporter",
     "blender" : (2, 80 ,0),
     "category" : "Export"
 }
@@ -12,9 +12,9 @@ from mathutils import Matrix, Vector
 
 from ozy_common import *
 
-class Exporter(bpy.types.Operator, ImportHelper):
+class MeshExporter(bpy.types.Operator, ImportHelper):
     """Export selection to OzyMesh file (.ozy)"""      # Use this as a tooltip for menu items and buttons.
-    bl_idname = "ozymesh.exporter"        # Unique identifier for buttons and menu items to reference.
+    bl_idname = "ozymesh.MeshExporter"        # Unique identifier for buttons and menu items to reference.
     bl_label = "OzyMesh (.ozy)"         # Display name in the interface.
     bl_options = {'REGISTER'}
     
@@ -31,14 +31,14 @@ class Exporter(bpy.types.Operator, ImportHelper):
         return {'FINISHED'}
 
 def menu_func(self, context):
-    self.layout.operator(Exporter.bl_idname)
+    self.layout.operator(MeshExporter.bl_idname)
 
 def register():    
-    bpy.utils.register_class(Exporter)
+    bpy.utils.register_class(MeshExporter)
     #bpy.types.TOPBAR_MT_file_export.append(menu_func)
 
 def unregister():
-    bpy.utils.unregister_class(Exporter)
+    bpy.utils.unregister_class(MeshExporter)
     #bpy.types.TOPBAR_MT_file_export.remove(menu_func)
     
 if __name__ == '__main__':

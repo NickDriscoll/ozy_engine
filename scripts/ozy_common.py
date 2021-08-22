@@ -27,7 +27,12 @@ def get_base_color(ob, index):
     principled = next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
     return principled.inputs["Base Color"]
 
-#Recursive helper for get_color_buffer()
+def get_alpha(ob, index):
+    mat = ob.material_slots[index].material
+    principled = next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
+    return principled.inputs["Alpha"]
+
+#Recursive helper for get_color_map()
 def color_map_rec(ob, map):
     for i in range(0, len(ob.material_slots)):
         base_color = get_base_color(ob, i)
@@ -55,12 +60,11 @@ class MeshData:
         self.color_map = {}
         self.current_index = 0
 
-def write_object_to_mesh_data(ob, mesh_data):
+def write_object_to_mesh_data(ob, model_transform, mesh_data):
     #Get a copy of the object with all modifiers applied
     depsgraph = bpy.context.evaluated_depsgraph_get()
     ob_copy = ob.evaluated_get(depsgraph)
     mesh = ob_copy.data
-    model_transform = ob_copy.matrix_world.copy()
 
     #Figure out the normal matrix
     normal_matrix = model_transform.to_3x3()
@@ -119,82 +123,17 @@ def write_object_to_mesh_data(ob, mesh_data):
                 mesh_data.index_buffer.append(mesh_data.current_index)
                 mesh_data.current_index += 1
 
-def write_vertex_array_rec(ob, model_transform, color_map, vertex_index_map, index_buffer, current_index):
-    #Get a copy of the object with all modifiers applied
-    depsgraph = bpy.context.evaluated_depsgraph_get()
-    ob_copy = ob.evaluated_get(depsgraph)
-    mesh = ob_copy.data
-            
-    #Figure out the normal matrix
-    normal_matrix = model_transform.to_3x3()
-    normal_matrix.invert()
-    normal_matrix = normal_matrix.to_4x4()
-    normal_matrix.transpose()
+def write_vertex_array_rec(ob, model_transform, mesh_data):
+    print("\"%s\" has %i faces" % (ob.name, len(ob.data.polygons)))
 
-    if mesh.uv_layers.active:
-        mesh.calc_tangents()
-        
-    print("\"%s\" has %i faces" % (ob.name, len(mesh.polygons)))
-    for face in mesh.polygons:
-        for i in face.loop_indices:
-            loop = mesh.loops[i]
-            pos = model_transform @ mesh.vertices[loop.vertex_index].co
-            
-            if len(color_map) > 0:
-                color_count = len(color_map)
-                
-                color_index = -1
-                val = "%s%i" % (ob.name, face.material_index)
-                for i, (key, value) in enumerate(color_map.items()):
-                    if val in value:
-                        color_index = i
-                        break
-                
-                u = 1.0 / (2.0 * color_count) + color_index / color_count
-                uvs = Vector((u, -0.5))
-            else:
-                uv_data = mesh.uv_layers.active.data
-                uvs = uv_data[i].uv
-            
-            tangent = normal_matrix @ loop.tangent
-            normal = normal_matrix @ loop.normal
-            bitangent = normal_matrix @ loop.bitangent
-            
-            #Just making sure they're normalized
-            tangent.normalize()
-            bitangent.normalize()
-            normal.normalize()
-            
-            #Construct the potential vertex
-            potential_vertex = (pos.x, pos.y, pos.z,
-                                tangent.x, tangent.y, tangent.z,
-                                bitangent.x, bitangent.y, bitangent.z,
-                                normal.x, normal.y, normal.z,
-                                uvs.x, -uvs.y)                                        
-            
-            #Compute size of a single vertex
-            vertex_elements = len(potential_vertex)
-                    
-            #Check if we've already seen this vertex
-            if potential_vertex in vertex_index_map:
-                index_buffer.append(vertex_index_map[potential_vertex])
-            else:
-                vertex_index_map[potential_vertex] = current_index
-                index_buffer.append(current_index)
-                current_index += 1
+    write_object_to_mesh_data(ob, model_transform, mesh_data)
         
     #Base case is when len(ob.children) == 0        
     for child in ob.children:
-        current_index = write_vertex_array_rec(child, model_transform, color_map, vertex_index_map, index_buffer, current_index)
-        
-    return current_index
+        write_vertex_array_rec(child, model_transform, mesh_data)
 
 def save_ozymesh(ob, model_transform, filepath):
-    vertex_index_map = {} #Dict elements are (vertex, u16)
-    index_buffer = []
-    color_map = {}
     texture_name = ""
-    current_index = 0
     vertex_elements = 14    #The number of floats in a single
     
     mesh = ob.data
@@ -212,13 +151,26 @@ def save_ozymesh(ob, model_transform, filepath):
         texture_name = ob.active_material.name
         #Assuming there's only one UV map
         uv_data = mesh.uv_layers.active.data
-    
-    write_vertex_array_rec(ob, model_transform, color_map, vertex_index_map, index_buffer, current_index)
+
+    mesh_data = MeshData()
+    write_vertex_array_rec(ob, model_transform, mesh_data)
+
+    #Get the uv velocity
+    uv_velocity = Vector((0.0, 0.0))
+    if "u velocity" in ob:
+        uv_velocity.x = ob["u velocity"]
+    if "v velocity" in ob:
+        uv_velocity.y = ob["v velocity"]
+
+    is_transparent = 0
+    alpha = get_alpha(ob, 0)
+    if len(alpha.links) > 0:
+        is_transparent = 1
 
     #Write the data to a file
     output = open(filepath, "wb")
 
-    if len(color_map) == 0:
+    if len(mesh_data.color_map) == 0:
         #Write zero byte
         output.write((0).to_bytes(1, "little"))
         
@@ -226,24 +178,26 @@ def save_ozymesh(ob, model_transform, filepath):
         write_pascal_strings(output, [texture_name])
     else:
         #Write number of colors
-        output.write((len(color_map)).to_bytes(1, "little"))
+        output.write((len(mesh_data.color_map)).to_bytes(1, "little"))
         
         #Write the colors one after the other as normalized RGBA f32 values
-        for color in color_map:
+        for color in mesh_data.color_map:
             for i in range(0, len(color)):
                 output.write(bytearray(struct.pack('f', color[i])))
-        
-        
+
+    #Write the uv velocity
+    for i in range(0, 2):
+        output.write(bytearray(struct.pack('f', uv_velocity[i])))
+
     #Write the vertex data
-    output.write(size_as_u32(vertex_index_map, vertex_elements * 4))
-    for vertex in list(vertex_index_map):
+    output.write(size_as_u32(mesh_data.vertex_index_map, vertex_elements * 4))
+    for vertex in list(mesh_data.vertex_index_map):
         for i in range(0, vertex_elements):
             output.write(bytearray(struct.pack('f', vertex[i])))
                 
     #Write the index data
-    output.write(size_as_u32(index_buffer, 2))
-    for index in index_buffer:
-        #print(index)
+    output.write(size_as_u32(mesh_data.index_buffer, 2))
+    for index in mesh_data.index_buffer:
         output.write(index.to_bytes(2, "little"))        
             
     output.close()

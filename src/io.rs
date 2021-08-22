@@ -7,6 +7,7 @@ use crate::structs::*;
 pub struct OzyMesh {
 	pub vertex_array: VertexArray,
 	pub texture_name: String,
+    pub uv_velocity: [f32; 2],
     pub colors: Vec<f32>
 }
 
@@ -51,6 +52,15 @@ impl OzyMesh {
                 }
             };
         }
+
+        //The uv_velocity
+        let uv_velocity = match read_f32_data(&mut model_file, 2) {
+            Ok(data) => { [data[0], data[1]] }
+            Err(e) => { 
+                println!("Error reading uv_velocity: {}", e);
+                return None;
+            }
+        };
     
         //The length of the vertex data section of the file, in bytes
         let vertices_size = match read_u32(&mut model_file) {
@@ -92,6 +102,7 @@ impl OzyMesh {
         Some(OzyMesh {
             vertex_array,
             texture_name,
+            uv_velocity,
             colors
         })
     }
