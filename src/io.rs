@@ -8,7 +8,8 @@ pub struct OzyMesh {
 	pub vertex_array: VertexArray,
 	pub texture_name: String,
     pub uv_velocity: [f32; 2],
-    pub colors: Vec<f32>
+    pub colors: Vec<f32>,
+    pub is_transparent: bool
 }
 
 impl OzyMesh {
@@ -52,6 +53,15 @@ impl OzyMesh {
                 }
             };
         }
+
+        //Transparency flag
+        let is_transparent = match read_u8(&mut model_file) {
+            Ok(flag) => { flag != 0 }
+            Err(e) => {
+                println!("Error reading transparency flag: {}", e);
+                return None;
+            }
+        };
 
         //The uv_velocity
         let uv_velocity = match read_f32_data(&mut model_file, 2) {
@@ -103,7 +113,8 @@ impl OzyMesh {
             vertex_array,
             texture_name,
             uv_velocity,
-            colors
+            colors,
+            is_transparent
         })
     }
 }

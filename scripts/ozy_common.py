@@ -58,7 +58,10 @@ class MeshData:
         self.vertex_index_map = {}
         self.index_buffer = []
         self.color_map = {}
+        self.is_transparent = False
         self.current_index = 0
+        self.texture_name = ""
+        self.uv_velocity = Vector((0.0, 0.0))
 
 def write_object_to_mesh_data(ob, model_transform, mesh_data):
     #Get a copy of the object with all modifiers applied
@@ -133,8 +136,7 @@ def write_vertex_array_rec(ob, model_transform, mesh_data):
         write_vertex_array_rec(child, model_transform, mesh_data)
 
 def save_ozymesh(ob, model_transform, filepath):
-    texture_name = ""
-    vertex_elements = 14    #The number of floats in a single
+    mesh_data = MeshData()
     
     mesh = ob.data
     if not ob.active_material:
@@ -145,37 +147,40 @@ def save_ozymesh(ob, model_transform, filepath):
     base_color = get_base_color(ob, 0)
     if len(base_color.links) == 0:
         print("Color is solid")
-        color_map = get_color_map(ob) #Use original object here bc copy doesn't keep children        
+        mesh_data.color_map = get_color_map(ob) #Use original object here bc copy doesn't keep children        
     else:
         print("Color is from texture")
-        texture_name = ob.active_material.name
+        mesh_data.texture_name = ob.active_material.name
         #Assuming there's only one UV map
         uv_data = mesh.uv_layers.active.data
 
-    mesh_data = MeshData()
     write_vertex_array_rec(ob, model_transform, mesh_data)
 
     #Get the uv velocity
-    uv_velocity = Vector((0.0, 0.0))
     if "u velocity" in ob:
-        uv_velocity.x = ob["u velocity"]
+        mesh_data.uv_velocity.x = ob["u velocity"]
     if "v velocity" in ob:
-        uv_velocity.y = ob["v velocity"]
+        mesh_data.uv_velocity.y = ob["v velocity"]
 
-    is_transparent = 0
     alpha = get_alpha(ob, 0)
     if len(alpha.links) > 0:
-        is_transparent = 1
+        mesh_data.is_transparent = True
 
     #Write the data to a file
     output = open(filepath, "wb")
+    mesh_data_to_file(output, mesh_data)
+    output.close()
 
+    return True
+
+def mesh_data_to_file(output, mesh_data):
+    vertex_elements = 14    
     if len(mesh_data.color_map) == 0:
         #Write zero byte
         output.write((0).to_bytes(1, "little"))
         
         #Write the material name as a pascal string
-        write_pascal_strings(output, [texture_name])
+        write_pascal_strings(output, [mesh_data.texture_name])
     else:
         #Write number of colors
         output.write((len(mesh_data.color_map)).to_bytes(1, "little"))
@@ -185,9 +190,13 @@ def save_ozymesh(ob, model_transform, filepath):
             for i in range(0, len(color)):
                 output.write(bytearray(struct.pack('f', color[i])))
 
+    #Write transparency flag
+    t_flag = 1 if mesh_data.is_transparent else 0
+    output.write(t_flag.to_bytes(1, "little"))
+
     #Write the uv velocity
     for i in range(0, 2):
-        output.write(bytearray(struct.pack('f', uv_velocity[i])))
+        output.write(bytearray(struct.pack('f', mesh_data.uv_velocity[i])))
 
     #Write the vertex data
     output.write(size_as_u32(mesh_data.vertex_index_map, vertex_elements * 4))
@@ -198,10 +207,7 @@ def save_ozymesh(ob, model_transform, filepath):
     #Write the index data
     output.write(size_as_u32(mesh_data.index_buffer, 2))
     for index in mesh_data.index_buffer:
-        output.write(index.to_bytes(2, "little"))        
-            
-    output.close()
-    return True
+        output.write(index.to_bytes(2, "little"))
 
 class TerrainData:
     def __init__(self):

@@ -71,18 +71,21 @@ class MapExporter(bpy.types.Operator, ImportHelper):
             for mat, ob_indices in material_object_maps[col_idx].items():
                 #Ozymesh data for this material collection
                 mesh_data = MeshData()
+                mesh_data.texture_name = mat
 
-                #We're just making all of these objects into one big VAO
-                #Get the uv velocity
-                uv_velocity = Vector((0.0, 0.0))
-                    
+                #We're just making all of these objects into one big VAO                    
                 for j in ob_indices:
                     ob = visible_collections[col_idx].objects[j]
                     write_object_to_mesh_data(ob, ob.matrix_world.copy(), mesh_data)
                     if "u velocity" in ob:
-                        uv_velocity.x = ob["u velocity"]
+                        mesh_data.uv_velocity.x = ob["u velocity"]
                     if "v velocity" in ob:
-                        uv_velocity.y = ob["v velocity"]
+                        mesh_data.uv_velocity.y = ob["v velocity"]
+                        
+                    
+                    alpha = get_alpha(ob, 0)
+                    if len(alpha.links) > 0:
+                        mesh_data.is_transparent = True
 
                 #record this ozymesh in the lvl file
                 ozyname = "%s_%s_terrain.ozy" % (level_name, mat)
@@ -94,28 +97,7 @@ class MapExporter(bpy.types.Operator, ImportHelper):
 
                 #Now to save the data to a file
                 output = open(filename, "wb")
-
-                #Write the material name as a pascal string
-                #Write zero byte
-                output.write((0).to_bytes(1, "little"))
-                write_pascal_strings(output, [mat])
-                
-                #Write the uv velocity
-                for i in range(0, 2):
-                    output.write(bytearray(struct.pack('f', uv_velocity[i])))
-                    
-                #Write the vertex data
-                vertex_elements = 14
-                output.write(size_as_u32(mesh_data.vertex_index_map, vertex_elements * 4))
-                for vertex in list(mesh_data.vertex_index_map):
-                    for i in range(0, vertex_elements):
-                        output.write(bytearray(struct.pack('f', vertex[i])))
-                            
-                #Write the index data
-                output.write(size_as_u32(mesh_data.index_buffer, 2))    
-                for index in mesh_data.index_buffer:
-                    output.write(index.to_bytes(2, "little"))        
-                        
+                mesh_data_to_file(output, mesh_data)
                 output.close()
             
         #instanced meshes
