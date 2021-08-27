@@ -160,6 +160,7 @@ impl Terrain {
             normals
         };
 
+        println!("Loaded {} collision triangles from {}", indices.len() / 3, path);
         Self {
             vertices,
             indices,
