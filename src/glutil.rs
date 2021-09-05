@@ -97,16 +97,16 @@ pub unsafe fn compile_shader_from_file(shadertype: GLenum, path: &str) -> Result
 	Ok(compile_shader(shadertype, &source))
 }
 
-pub fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> Result<GLuint, io::Error> {
+pub fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> Result<GLuint, String> {
 	unsafe {
 		let vertexshader = match compile_shader_from_file(gl::VERTEX_SHADER, vertex_name) {
 			Ok(shader) => { shader }
-			Err(e) => { return Err(e); }
+			Err(e) => { return Err(format!("{}", e)); }
 		};
 
 		let fragmentshader = match compile_shader_from_file(gl::FRAGMENT_SHADER, fragment_name) {
 			Ok(shader) => { shader }
-			Err(e) => { return Err(e); }
+			Err(e) => { return Err(format!("{}", e)); }
 		};
 
 		//Link shaders
@@ -123,7 +123,7 @@ pub fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> Res
 		let mut infolog = vec![0; log_size as usize];
 		if success != gl::TRUE as GLint {
 			gl::GetProgramInfoLog(shader_progam, log_size, ptr::null_mut(), infolog.as_mut_ptr() as *mut GLchar);
-			shader_compilation_error(&infolog);
+			return Err(shader_compilation_error(&infolog))
 		}
 
 		gl::DeleteShader(vertexshader);
@@ -132,12 +132,14 @@ pub fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> Res
 	}
 }
 
-fn shader_compilation_error(infolog: &[u8]) {
+fn shader_compilation_error(infolog: &[u8]) -> String {
 	let error_message = match str::from_utf8(infolog) {
 		Ok(message) => { message }
 		Err(_) => { panic!("Error getting the shader compilation error. This statement should be unreachable."); }
 	};
-	panic!("\n--------SHADER COMPILATION ERROR--------\n{}", error_message);
+	//format!("\n--------SHADER COMPILATION ERROR--------\n{}", error_message)
+	println!("{}", error_message);
+	format!("--------SHADER COMPILATION ERROR--------\ncheck terminal for details")
 }
 
 pub unsafe fn uniform_location(program: GLuint, name: &str) -> GLint {
