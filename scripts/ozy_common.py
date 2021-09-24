@@ -226,9 +226,7 @@ def append_collision_to_buffers(col, terrain_data):
         me.from_mesh(ob.data)
         triangles = me.calc_loop_triangles()
         num_tris = len(triangles)
-        if num_tris > 100:
-            print("%s is kind of large to be a collision mesh at %i tris." % (ob.name, num_tris))
-
+        
         for face in triangles:
             face_verts = []
             for loop in face:

@@ -97,22 +97,24 @@ pub unsafe fn compile_shader_from_file(shadertype: GLenum, path: &str) -> Result
 	Ok(compile_shader(shadertype, &source))
 }
 
-pub fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> Result<GLuint, String> {
+pub fn compile_program_from_files(sources: &[(GLenum, &str)]) -> Result<GLuint, String> {
 	unsafe {
-		let vertexshader = match compile_shader_from_file(gl::VERTEX_SHADER, vertex_name) {
-			Ok(shader) => { shader }
-			Err(e) => { return Err(format!("{}", e)); }
-		};
-
-		let fragmentshader = match compile_shader_from_file(gl::FRAGMENT_SHADER, fragment_name) {
-			Ok(shader) => { shader }
-			Err(e) => { return Err(format!("{}", e)); }
+		let shaders = {
+			let mut ss = Vec::with_capacity(sources.len());
+			for source in sources {
+				match compile_shader_from_file(source.0, source.1) {
+					Ok(shader) => { ss.push(shader); }
+					Err(e) => { return Err(format!("{}", e)); }
+				}
+			}
+			ss
 		};
 
 		//Link shaders
 		let shader_progam = gl::CreateProgram();
-		gl::AttachShader(shader_progam, vertexshader);
-		gl::AttachShader(shader_progam, fragmentshader);
+		for shader in &shaders {
+			gl::AttachShader(shader_progam, *shader);
+		}
 		gl::LinkProgram(shader_progam);
 
 		//Check for errors
@@ -126,8 +128,9 @@ pub fn compile_program_from_files(vertex_name: &str, fragment_name: &str) -> Res
 			return Err(shader_compilation_error(&infolog))
 		}
 
-		gl::DeleteShader(vertexshader);
-		gl::DeleteShader(fragmentshader);
+		for shader in &shaders {
+			gl::DeleteShader(*shader);
+		}
 		Ok(shader_progam)
 	}
 }

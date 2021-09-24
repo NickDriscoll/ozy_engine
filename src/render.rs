@@ -259,7 +259,6 @@ impl RenderTarget {
 			(gl::TEXTURE_MAG_FILTER, gl::NEAREST)
 		];
         glutil::apply_texture_parameters(&params);
-	    //gl::GenerateMipmap(gl::TEXTURE_2D);
 
 		gl::BindTexture(gl::TEXTURE_2D_MULTISAMPLE, depth_tex);
 		gl::TexImage2DMultisample(
