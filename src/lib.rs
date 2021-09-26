@@ -9,7 +9,6 @@ pub mod glutil;
 pub mod prims;
 pub mod render;
 pub mod routines;
-pub mod ui;
 
 fn clamp<T: PartialOrd>(x: T, min: T, max: T) -> T {
     if x < min { min }

@@ -27,15 +27,7 @@ pub fn clip_from_screen(screen_size: glm::TVec2<u32>) -> glm::TMat4<f32> {
 
 pub struct ScreenState {
     window_size: glm::TVec2<u32>,
-    aspect_ratio: f32,
-	fov_radians: f32,
 	default_framebuffer: Framebuffer,
-	view_from_world: glm::TMat4<f32>,
-    clipping_from_view: glm::TMat4<f32>,
-    clipping_from_world: glm::TMat4<f32>,
-    world_from_clipping: glm::TMat4<f32>,
-	world_from_view: glm::TMat4<f32>,
-    clipping_from_screen: glm::TMat4<f32>
 }
 
 impl ScreenState {
@@ -57,18 +49,11 @@ impl ScreenState {
 
         ScreenState {
             window_size,
-            aspect_ratio,
-			fov_radians,
-			default_framebuffer,
-			view_from_world,
-            clipping_from_view,
-            clipping_from_world,
-            world_from_clipping,
-			world_from_view,
-            clipping_from_screen
+			default_framebuffer
         }
 	}
-	
+
+	/*
 	pub fn update_view(&mut self, view_from_world: glm::TMat4<f32>) {
 		let clipping_from_world = self.clipping_from_view * view_from_world;
         let world_from_clipping = glm::affine_inverse(clipping_from_world);
@@ -81,9 +66,11 @@ impl ScreenState {
 		self.world_from_view = world_from_view;
 		self.clipping_from_screen = clipping_from_screen;
 	}
+	*/
 
-	pub fn get_fov_radians(&self) -> f32 { self.fov_radians }
 	pub fn get_window_size(&self) -> glm::TVec2<u32> { self.window_size }
+	/*
+	pub fn get_fov_radians(&self) -> f32 { self.fov_radians }
 	pub fn get_aspect_ratio(&self) -> f32 { self.aspect_ratio }
 	pub fn get_view_from_world(&self) -> &glm::TMat4<f32> { &self.view_from_world }
 	pub fn get_clipping_from_view(&self) -> &glm::TMat4<f32> { &self.clipping_from_view }
@@ -91,6 +78,7 @@ impl ScreenState {
 	pub fn get_world_from_clipping(&self) -> &glm::TMat4<f32> { &self.world_from_clipping }
 	pub fn get_world_from_view(&self) -> &glm::TMat4<f32> { &self.world_from_view }
 	pub fn get_clipping_from_screen(&self) -> &glm::TMat4<f32> { &self.clipping_from_screen }
+	*/
 }
 
 pub struct StaticGeometry {
@@ -152,7 +140,8 @@ impl Drop for Framebuffer {
 //A framebuffer object with color and depth attachments
 pub struct RenderTarget {
     pub framebuffer: Framebuffer,
-    pub texture: GLuint
+    pub texture: GLuint,
+	pub msaa_samples: GLint
 }
 
 impl RenderTarget {
@@ -231,7 +220,8 @@ impl RenderTarget {
 
 		RenderTarget {
 			framebuffer: f_buffer,
-			texture: color_tex
+			texture: color_tex,
+			msaa_samples: 1
 		}
     }
 	
@@ -303,7 +293,8 @@ impl RenderTarget {
 
 		RenderTarget {
 			framebuffer: f_buffer,
-			texture: color_tex
+			texture: color_tex,
+			msaa_samples: samples
 		}
     }
 
@@ -348,16 +339,20 @@ impl RenderTarget {
 
 		RenderTarget {
 			framebuffer,
-			texture: shadow_texture
+			texture: shadow_texture,
+			msaa_samples: 1
 		}
 	}
 
     pub unsafe fn bind(&self) { self.framebuffer.bind(); }
 
     pub unsafe fn resize(&mut self, size: (u32, u32)) {
-        gl::DeleteFramebuffers(1, &self.framebuffer.name);
-        let n = Self::new((size.0 as GLint, size.1 as GLint));
-        self.framebuffer = n.framebuffer;
-        self.texture = n.texture;
+		let old_name = self.framebuffer.name;
+		*self = if self.msaa_samples == 1 {
+			Self::new((size.0 as GLint, size.1 as GLint))
+		} else {
+			Self::new_multisampled((size.0 as GLint, size.1 as GLint), self.msaa_samples)
+		};
+        gl::DeleteFramebuffers(1, &old_name);
     }
 }
