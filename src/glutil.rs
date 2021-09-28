@@ -140,9 +140,7 @@ fn shader_compilation_error(infolog: &[u8]) -> String {
 		Ok(message) => { message }
 		Err(_) => { panic!("Error getting the shader compilation error. This statement should be unreachable."); }
 	};
-	//format!("\n--------SHADER COMPILATION ERROR--------\n{}", error_message)
-	println!("{}", error_message);
-	format!("--------SHADER COMPILATION ERROR--------\ncheck terminal for details")
+	format!("\n--------SHADER COMPILATION ERROR--------\n{}", error_message)
 }
 
 pub unsafe fn uniform_location(program: GLuint, name: &str) -> GLint {
