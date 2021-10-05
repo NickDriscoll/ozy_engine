@@ -12,6 +12,7 @@ use crate::structs::*;
 const FLOATS_PER_TRANSFORM: usize = 16;
 
 pub extern "system" fn gl_debug_callback(source: GLenum, gltype: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *const GLchar, _: *mut c_void) {
+	if severity == gl::DEBUG_SEVERITY_NOTIFICATION { return; }
 	println!("--------------------OpenGL debug message--------------------");
 	println!("ID: {}", id);
 	
@@ -26,7 +27,9 @@ pub extern "system" fn gl_debug_callback(source: GLenum, gltype: GLenum, id: GLu
 	}
 
 	match gltype {
-		gl::DEBUG_TYPE_ERROR => 					{ println!("Type: Error") }
+		gl::DEBUG_TYPE_ERROR => {
+			println!("Type: Error")
+		}
 		gl::DEBUG_TYPE_DEPRECATED_BEHAVIOR => 		{ println!("Type: Deprecated Behaviour") }
 		gl::DEBUG_TYPE_UNDEFINED_BEHAVIOR => 		{ println!("Type: Undefined Behaviour") }
 		gl::DEBUG_TYPE_PORTABILITY => 				{ println!("Type: Portability") }

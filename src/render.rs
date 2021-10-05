@@ -141,11 +141,12 @@ impl Drop for Framebuffer {
 pub struct RenderTarget {
     pub framebuffer: Framebuffer,
     pub texture: GLuint,
-	pub msaa_samples: GLint
+	pub msaa_samples: GLint,
+	pub color_buffer_internal_format: GLenum,
 }
 
 impl RenderTarget {
-    pub unsafe fn new(size: (GLint, GLint)) -> Self {
+    pub unsafe fn new(size: (GLint, GLint), color_buffer_internal_format: GLenum) -> Self {
         let mut fbo = 0;
 		let mut texs = [0; 2];
 		gl::GenFramebuffers(1, &mut fbo);
@@ -154,17 +155,20 @@ impl RenderTarget {
 
 		//Initialize the color buffer
 		gl::BindTexture(gl::TEXTURE_2D, color_tex);
+		/*
 		gl::TexImage2D(
 			gl::TEXTURE_2D,
 			0,
-			gl::SRGB8_ALPHA8 as GLint,
+			color_buffer_internal_format as GLint,
 			size.0,
 			size.1,
 			0,
 			gl::RGBA,
-			gl::FLOAT,
+			gl::UNSIGNED_BYTE,
 			ptr::null()
 		);
+		*/
+		gl::TexStorage2D(gl::TEXTURE_2D, 1, color_buffer_internal_format, size.0, size.1);
 		let params = [
 			(gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE),
 			(gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE),
@@ -172,7 +176,6 @@ impl RenderTarget {
 			(gl::TEXTURE_MAG_FILTER, gl::NEAREST)
 		];
         glutil::apply_texture_parameters(&params);
-	    gl::GenerateMipmap(gl::TEXTURE_2D);
 
 		gl::BindTexture(gl::TEXTURE_2D, depth_tex);
 		gl::TexImage2D(
@@ -183,7 +186,7 @@ impl RenderTarget {
 			size.1,
 			0,
 			gl::DEPTH_COMPONENT,
-			gl::FLOAT,
+			gl::UNSIGNED_BYTE,
 			ptr::null()
 		);
 		let params = [
@@ -221,11 +224,12 @@ impl RenderTarget {
 		RenderTarget {
 			framebuffer: f_buffer,
 			texture: color_tex,
-			msaa_samples: 1
+			msaa_samples: 1,
+			color_buffer_internal_format
 		}
     }
 	
-	pub unsafe fn new_multisampled(size: (GLint, GLint), samples: GLint) -> Self {
+	pub unsafe fn new_multisampled(size: (GLint, GLint), samples: GLint, color_buffer_internal_format: GLenum) -> Self {
         let mut fbo = 0;
 		let mut texs = [0; 2];
 		gl::GenFramebuffers(1, &mut fbo);
@@ -237,7 +241,7 @@ impl RenderTarget {
 		gl::TexImage2DMultisample(
 			gl::TEXTURE_2D_MULTISAMPLE,
 			samples,
-			gl::SRGB8_ALPHA8,
+			color_buffer_internal_format,
 			size.0,
 			size.1,
 			gl::TRUE
@@ -294,7 +298,8 @@ impl RenderTarget {
 		RenderTarget {
 			framebuffer: f_buffer,
 			texture: color_tex,
-			msaa_samples: samples
+			msaa_samples: samples,
+			color_buffer_internal_format
 		}
     }
 
@@ -340,7 +345,8 @@ impl RenderTarget {
 		RenderTarget {
 			framebuffer,
 			texture: shadow_texture,
-			msaa_samples: 1
+			msaa_samples: 1,
+			color_buffer_internal_format: 0
 		}
 	}
 
@@ -349,9 +355,9 @@ impl RenderTarget {
     pub unsafe fn resize(&mut self, size: (u32, u32)) {
 		let old_name = self.framebuffer.name;
 		*self = if self.msaa_samples == 1 {
-			Self::new((size.0 as GLint, size.1 as GLint))
+			Self::new((size.0 as GLint, size.1 as GLint), self.color_buffer_internal_format)
 		} else {
-			Self::new_multisampled((size.0 as GLint, size.1 as GLint), self.msaa_samples)
+			Self::new_multisampled((size.0 as GLint, size.1 as GLint), self.msaa_samples, self.color_buffer_internal_format)
 		};
         gl::DeleteFramebuffers(1, &old_name);
     }
