@@ -141,6 +141,7 @@ impl Drop for Framebuffer {
 pub struct RenderTarget {
     pub framebuffer: Framebuffer,
     pub texture: GLuint,
+	pub color_attachment_view: GLuint,
 	pub msaa_samples: GLint,
 	pub color_buffer_internal_format: GLenum,
 }
@@ -155,19 +156,6 @@ impl RenderTarget {
 
 		//Initialize the color buffer
 		gl::BindTexture(gl::TEXTURE_2D, color_tex);
-		/*
-		gl::TexImage2D(
-			gl::TEXTURE_2D,
-			0,
-			color_buffer_internal_format as GLint,
-			size.0,
-			size.1,
-			0,
-			gl::RGBA,
-			gl::UNSIGNED_BYTE,
-			ptr::null()
-		);
-		*/
 		gl::TexStorage2D(gl::TEXTURE_2D, 1, color_buffer_internal_format, size.0, size.1);
 		let params = [
 			(gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE),
@@ -220,10 +208,18 @@ impl RenderTarget {
 			clear_flags: gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT,
 			cull_face: gl::BACK
 		};
+		
+		let color_attachment_view = {
+			let mut view_name = 0;
+			gl::GenTextures(1, &mut view_name);
+			gl::TextureView(view_name, gl::TEXTURE_2D, color_tex, gl::RGBA8, 0, 5, 0, 1);	
+			view_name
+		};
 
 		RenderTarget {
 			framebuffer: f_buffer,
 			texture: color_tex,
+			color_attachment_view,
 			msaa_samples: 1,
 			color_buffer_internal_format
 		}
@@ -294,10 +290,18 @@ impl RenderTarget {
 			clear_flags: gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT,
 			cull_face: gl::BACK
 		};
+		
+		let color_attachment_view = {
+			let mut view_name = 0;
+			gl::GenTextures(1, &mut view_name);
+			gl::TextureView(view_name, gl::TEXTURE_2D_MULTISAMPLE, color_tex, gl::RGBA8, 0, 1, 0, 1);	
+			view_name
+		};
 
 		RenderTarget {
 			framebuffer: f_buffer,
 			texture: color_tex,
+			color_attachment_view,
 			msaa_samples: samples,
 			color_buffer_internal_format
 		}
@@ -345,6 +349,7 @@ impl RenderTarget {
 		RenderTarget {
 			framebuffer,
 			texture: shadow_texture,
+			color_attachment_view: 0,
 			msaa_samples: 1,
 			color_buffer_internal_format: 0
 		}
