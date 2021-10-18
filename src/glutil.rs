@@ -346,9 +346,9 @@ pub unsafe fn bind_new_transform_buffer(instanced_attribute: GLuint) {
 }
 
 //Apllies the list of parameters to the current bound 2D texture
-pub unsafe fn apply_texture_parameters(parameters: &[(GLenum, GLenum)]) {
+pub unsafe fn apply_texture_parameters(target: GLuint, parameters: &[(GLenum, GLenum)]) {
 	for param in parameters {
-		gl::TexParameteri(gl::TEXTURE_2D, param.0, param.1 as GLint);
+		gl::TexParameteri(target, param.0, param.1 as GLint);
 	}
 }
 
@@ -359,7 +359,7 @@ pub unsafe fn load_texture_from_data(image_data: ImageData, parameters: &[(GLenu
 	gl::BindTexture(gl::TEXTURE_2D, tex);
 
 	//Apply texture parameters
-	apply_texture_parameters(parameters);
+	apply_texture_parameters(gl::TEXTURE_2D, parameters);
 
 	//Upload texture data
 	gl::TexImage2D(gl::TEXTURE_2D,

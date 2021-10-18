@@ -163,7 +163,7 @@ impl RenderTarget {
 			(gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR),
 			(gl::TEXTURE_MAG_FILTER, gl::NEAREST)
 		];
-        glutil::apply_texture_parameters(&params);
+        glutil::apply_texture_parameters(gl::TEXTURE_2D, &params);
 
 		gl::BindTexture(gl::TEXTURE_2D, depth_tex);
 		gl::TexImage2D(
@@ -183,7 +183,7 @@ impl RenderTarget {
 			(gl::TEXTURE_MIN_FILTER, gl::NEAREST),
 			(gl::TEXTURE_MAG_FILTER, gl::NEAREST)
 		];
-		glutil::apply_texture_parameters(&params);
+		glutil::apply_texture_parameters(gl::TEXTURE_2D, &params);
 
 		gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
 		gl::FramebufferTexture2D(
@@ -248,7 +248,7 @@ impl RenderTarget {
 			(gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR),
 			(gl::TEXTURE_MAG_FILTER, gl::NEAREST)
 		];
-        glutil::apply_texture_parameters(&params);
+        glutil::apply_texture_parameters(gl::TEXTURE_2D, &params);
 
 		gl::BindTexture(gl::TEXTURE_2D_MULTISAMPLE, depth_tex);
 		gl::TexImage2DMultisample(
@@ -265,7 +265,7 @@ impl RenderTarget {
 			(gl::TEXTURE_MIN_FILTER, gl::NEAREST),
 			(gl::TEXTURE_MAG_FILTER, gl::NEAREST)
 		];
-		glutil::apply_texture_parameters(&params);
+		glutil::apply_texture_parameters(gl::TEXTURE_2D, &params);
 
 		gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
 		gl::FramebufferTexture2D(
@@ -327,7 +327,7 @@ impl RenderTarget {
 			gl::FLOAT,
 			ptr::null()
 		);
-		glutil::apply_texture_parameters(&DEFAULT_TEX_PARAMS);
+		glutil::apply_texture_parameters(gl::TEXTURE_2D, &DEFAULT_TEX_PARAMS);
 
 		gl::BindFramebuffer(gl::FRAMEBUFFER, shadow_framebuffer);
 		gl::FramebufferTexture2D(

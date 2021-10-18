@@ -101,9 +101,7 @@ impl<T> OptionVec<T> {
 	}
 
 	pub fn clear(&mut self) {
-		for i in 0..self.optionvec.len() {
-			self.optionvec[i] = None;
-		}
+		self.optionvec.clear();
 		self.count = 0;
 	}
 

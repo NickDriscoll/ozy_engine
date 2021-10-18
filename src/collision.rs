@@ -63,6 +63,7 @@ pub struct Sphere {
     pub radius: f32
 }
 
+#[derive(Debug)]
 pub struct Capsule {
     pub segment: LineSegment,
     pub radius: f32
@@ -228,14 +229,21 @@ pub fn ray_hit_plane(ray: &Ray, plane: &Plane) -> Option<(f32, glm::TVec3<f32>)>
     Some((t, intersection))
 }
 
+pub struct RayTerrainCollision {
+    pub smallest_t: f32,
+    pub triangle_index: usize,
+    pub point: glm::TVec3<f32>
+}
+
 //Returns the first intersection point between a ray and terrain mesh
-pub fn ray_hit_terrain(terrain: &Terrain, ray: &Ray) -> Option<(f32, glm::TVec3<f32>)> {
+pub fn ray_hit_terrain(terrain: &Terrain, ray: &Ray) -> Option<RayTerrainCollision> {
     let mut smallest_t = f32::INFINITY;
     let mut closest_intersection = None;
     for i in (0..terrain.indices.len()).step_by(3) {
         //Get the vertices of the triangle
         let triangle = get_terrain_triangle(&terrain, i);
-        let normal = terrain.face_normals[i / 3];
+        let triangle_id = i / 3;
+        let normal = terrain.face_normals[triangle_id];
         let plane = Plane::new(triangle.a, normal);
 
         let (t, intersection) = match ray_hit_plane(&ray, &plane) {
@@ -246,7 +254,13 @@ pub fn ray_hit_terrain(terrain: &Terrain, ray: &Ray) -> Option<(f32, glm::TVec3<
         //Robust triangle-point collision in 3D
         if t >= 0.0 && t < smallest_t && robust_point_in_triangle(&intersection, &triangle) {
             smallest_t = t;
-            closest_intersection = Some((smallest_t, intersection));
+            closest_intersection = Some(
+                RayTerrainCollision {
+                    smallest_t,
+                    triangle_index: triangle_id,
+                    point: intersection
+                }
+            );
         }
     }
 
