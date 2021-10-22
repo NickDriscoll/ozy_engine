@@ -254,9 +254,8 @@ def collection_to_terrain_data(collection, terrain_data):
 def save_ozyterrain(filepath, collection):
     terrain_data = TerrainData()
 
-    for col in collection.children:
-        append_collision_to_buffers(col, terrain_data)
-    append_collision_to_buffers(collection, terrain_data)
+    #Fill out terrain_data
+    collection_to_terrain_data(collection, terrain_data)
         
     #Write the data to a file
     write_ozyterrain_file(filepath, terrain_data)
