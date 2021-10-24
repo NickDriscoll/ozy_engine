@@ -127,6 +127,14 @@ pub fn read_u8(file: &mut File) -> Result<u8, Error> {
     }    
 }
 
+pub fn read_u8_data(file: &mut File, count: usize) -> Result<Vec<u8>, Error> {
+    let mut bytes = vec![0; count];
+    if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
+        return Err(e);
+	}
+	Ok(bytes)
+}
+
 pub fn read_u32(file: &mut File) -> Result<u32, Error> {
 	let mut buffer = [0; 4];
 	match file.read_exact(&mut buffer) {

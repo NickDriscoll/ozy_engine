@@ -4,7 +4,7 @@ use std::str;
 use std::io;
 use std::io::Read;
 use std::fs::File;
-use std::{mem, process, ptr};
+use std::{mem, ptr};
 use std::os::raw::c_void;
 use image::DynamicImage;
 use crate::structs::*;

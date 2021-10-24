@@ -1,7 +1,7 @@
 use gl::types::*;
 use std::slice::{Iter, IterMut};
 use std::ops::{Index};
-use std::time::{Duration, Instant};
+use std::time::{Instant};
 
 pub struct FrameTimer {
 	pub frame_count: u64,

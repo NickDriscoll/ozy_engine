@@ -1,9 +1,7 @@
 use gl::types::*;
 use std::collections::HashMap;
-use std::mem;
 use std::ptr;
-use std::os::raw::c_void;
-use crate::{glutil, io};
+use crate::{glutil};
 use glutil::ColorSpace;
 
 const DEFAULT_TEX_PARAMS: [(GLenum, GLenum); 4] = [
@@ -31,13 +29,13 @@ pub struct ScreenState {
 }
 
 impl ScreenState {
-    pub fn new(window_size: glm::TVec2<u32>, view_from_world: glm::TMat4<f32>, fov_radians: f32, near: f32, far: f32) -> Self {
-		let clipping_from_view = glm::perspective_zo(window_size.x as f32 / window_size.y as f32, fov_radians, near, far);
-        let aspect_ratio = window_size.x as f32 / window_size.y as f32;
-        let clipping_from_world = clipping_from_view * view_from_world;
-        let world_from_clipping = glm::affine_inverse(clipping_from_world);
-		let world_from_view = glm::affine_inverse(view_from_world);
-        let clipping_from_screen = clip_from_screen(window_size);
+    pub fn new(window_size: glm::TVec2<u32>, _: glm::TMat4<f32>, _: f32, _: f32, _: f32) -> Self {
+		//let clipping_from_view = glm::perspective_zo(window_size.x as f32 / window_size.y as f32, fov_radians, near, far);
+        //let aspect_ratio = window_size.x as f32 / window_size.y as f32;
+        //let clipping_from_world = clipping_from_view * view_from_world;
+        //let world_from_clipping = glm::affine_inverse(clipping_from_world);
+		//let world_from_view = glm::affine_inverse(view_from_world);
+        //let clipping_from_screen = clip_from_screen(window_size);
 
         //Initialize default framebuffer
         let default_framebuffer = Framebuffer {
@@ -100,7 +98,18 @@ impl TextureKeeper {
         }
     }
 
-    pub fn fetch_texture(&mut self, name: &str, map_type: &str, tex_params: &[(GLenum, GLenum)], color_space: ColorSpace) -> GLuint {
+	pub fn fetch_texture(&mut self, path: &str, tex_params: &[(GLenum, GLenum)], color_space: ColorSpace) -> GLuint {
+		match self.map.get(path) {
+			Some(t) => { *t }
+			None => {
+				let name = glutil::load_texture(path, tex_params, color_space);
+				self.map.insert(String::from(path), name);
+				name
+			}
+		}
+	}
+
+    pub fn fetch_material(&mut self, name: &str, map_type: &str, tex_params: &[(GLenum, GLenum)], color_space: ColorSpace) -> GLuint {
 		let texture_path = format!("materials/{}/{}.png", name, map_type);
 		match self.map.get(&texture_path) {
 			Some(t) => { *t }
