@@ -1,4 +1,3 @@
-use gl::types::*;
 use crate::glutil;
 
 pub fn sphere_index_count(segments: usize, rings: usize) -> usize {	
@@ -55,7 +54,7 @@ fn sphere_index_array(segments: usize, rings: usize) -> Vec<u16> {
 	inds
 }
 
-pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
+pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> glutil::VertexArrayNames {
 	let attrib_offsets = [3, 3];
 	let attrib_size = {
 		let mut s = 0;
@@ -108,7 +107,7 @@ pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
 	unsafe { glutil::create_vertex_array_object(&verts, &inds, &attrib_offsets) }
 }
 
-pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
+pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize) -> glutil::VertexArrayNames {
 	let attrib_offsets = [3, 3];
 	let attrib_size = {
 		let mut s = 0;
@@ -171,7 +170,7 @@ pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize) -> GLuint {
 	vec2 uv;
 //
 */
-pub fn plane_vao(vertices_width: usize) -> GLuint {
+pub fn plane_vao(vertices_width: usize) -> glutil::VertexArrayNames {
 	if vertices_width < 2 {
 		panic!("vertices_width must be greater than 2");
 	}
@@ -231,7 +230,7 @@ pub fn plane_vao(vertices_width: usize) -> GLuint {
 	unsafe { glutil::create_vertex_array_object(&vertex_buffer, &indices, &attribute_offsets) }
 }
 
-pub fn skybox_cube_vao() -> GLuint {
+pub fn skybox_cube_vao() -> glutil::VertexArrayNames {
 	const VERTICES: [f32; 24] = [
 		-1.0, -1.0, -1.0,
 		1.0, -1.0, -1.0,

@@ -243,7 +243,7 @@ impl RenderTarget {
 
 		//Initialize the color buffer
 		gl::BindTexture(gl::TEXTURE_2D_MULTISAMPLE, color_tex);
-		gl::TexImage2DMultisample(
+		gl::TexStorage2DMultisample(
 			gl::TEXTURE_2D_MULTISAMPLE,
 			samples,
 			color_buffer_internal_format,

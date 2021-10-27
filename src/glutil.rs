@@ -157,9 +157,16 @@ pub unsafe fn gl_gen_buffer() -> GLuint {
 	buffer
 }
 
+#[derive(Clone, Debug)]
+pub struct VertexArrayNames {
+	pub vao: GLuint,
+	pub vbo: GLuint,
+	pub ebo: GLuint
+}
+
 //Input: array of vertex data, an array of indices, and an array representing the number of elements per vertex attribute
 //Output: A vertex array object with the vertex data bound as a GL_ARRAY_BUFFER, and the index data bound as a GL_ELEMENT_ARRAY_BUFFER
-pub unsafe fn create_vertex_array_object(vertices: &[f32], indices: &[u16], attribute_strides: &[i32]) -> GLuint {
+pub unsafe fn create_vertex_array_object(vertices: &[f32], indices: &[u16], attribute_strides: &[i32]) -> VertexArrayNames {
 	let mut vao = 0;
 	gl::GenVertexArrays(1, &mut vao);
 	let (vbo, ebo) = {
@@ -205,7 +212,11 @@ pub unsafe fn create_vertex_array_object(vertices: &[f32], indices: &[u16], attr
 		cumulative_size += attribute_strides[i] as u32;
 	}
 
-	vao
+	VertexArrayNames {
+		vao,
+		vbo,
+		ebo
+	}
 }
 
 pub fn load_texture(path: &str, parameters: &[(GLenum, GLenum)], color_space: ColorSpace) -> GLuint {
