@@ -14,7 +14,7 @@ from ozy_common import *
 
 class MeshExporter(bpy.types.Operator, ImportHelper):
     """Export selection to OzyMesh file (.ozy)"""      # Use this as a tooltip for menu items and buttons.
-    bl_idname = "ozymesh.MeshExporter"        # Unique identifier for buttons and menu items to reference.
+    bl_idname = "ozymesh.meshexporter"        # Unique identifier for buttons and menu items to reference.
     bl_label = "OzyMesh (.ozy)"         # Display name in the interface.
     bl_options = {'REGISTER'}
     
