@@ -285,10 +285,6 @@ pub fn segment_hit_bounded_plane(plane: &Plane, segment: &LineSegment, boundarie
     }
 }
 
-pub fn point_plane_distance(point: &glm::TVec3<f32>, plane: &Plane) -> f32 {
-    glm::dot(&plane.normal, &(point - plane.point))
-}
-
 //The returned plane's reference point is the intersection point
 pub fn segment_plane_tallest_collision(segment: &LineSegment, planes: &[Plane]) -> Option<Plane> {    
     let mut max_height = -f32::INFINITY;
@@ -337,6 +333,10 @@ pub fn closest_point_on_triangle(test_point: &glm::TVec3<f32>, triangle: &Triang
     (best_dist, best_point)
 }
 
+pub fn point_plane_distance(point: &glm::TVec3<f32>, plane: &Plane) -> f32 {
+    glm::dot(&plane.normal, &(point - plane.point))
+}
+
 pub fn projected_point_on_plane(point: &glm::TVec3<f32>, plane: &Plane) -> (f32, glm::TVec3<f32>) {
     let dist1 = point_plane_distance(point, plane);
     let p = point + plane.normal * -dist1 ;
@@ -354,6 +354,7 @@ pub fn spheres_collide(s1: &Sphere, s2: &Sphere) -> bool {
 
 //Returns the vector to add to the position of the actor to resolve the collision
 pub fn triangle_collide_sphere(actor_sphere: &Sphere, triangle: &Triangle, triangle_sphere: &Sphere) -> Option<glm::TVec3<f32>> {
+    const EPSILON: f32 = 0.00001;
     match triangle_sphere_collision_point(actor_sphere, triangle, triangle_sphere) {
         Some((dist, point)) => {
             if actor_sphere.focus == point {                
@@ -362,7 +363,16 @@ pub fn triangle_collide_sphere(actor_sphere: &Sphere, triangle: &Triangle, trian
                 let flip = if dist < 0.0 { -1.0 }
                 else { 1.0 };
 
-                Some(flip * glm::normalize(&(actor_sphere.focus - point)) * (actor_sphere.radius - dist))
+                let direction = {
+                    let v = actor_sphere.focus - point;
+                    if glm::length(&v) > -EPSILON && glm::length(&v) < EPSILON {
+                        triangle.normal
+                    } else {
+                        glm::normalize(&v)
+                    }
+                };
+
+                Some(flip * direction * (actor_sphere.radius - dist))
             }
         }
         None => { None }
