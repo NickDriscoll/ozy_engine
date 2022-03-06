@@ -3,18 +3,34 @@ use std::slice::{Iter, IterMut};
 use std::ops::{Index};
 use std::time::{Instant};
 
+//Struct for basic frame timing ops
 pub struct FrameTimer {
 	pub frame_count: u64,
 	pub last_frame_instant: Instant,
-	pub elapsed_time: f32
+	pub elapsed_time: f32,
+	pub delta_time: f32
 }
 
 impl FrameTimer {
+	const MAX_TIME: f32 = 60.0;
+
 	pub fn new() -> Self {
 		FrameTimer {
 			frame_count: 0,
 			last_frame_instant: Instant::now(),
-			elapsed_time: 0.0
+			elapsed_time: 0.0,
+			delta_time: 0.0
+		}
+	}
+
+	pub fn update(&mut self) {
+		self.delta_time = Instant::now().duration_since(self.last_frame_instant).as_secs_f32();
+		self.elapsed_time += self.delta_time;
+		self.last_frame_instant = Instant::now();
+		self.frame_count += 1;
+
+		if self.elapsed_time > Self::MAX_TIME {
+			self.elapsed_time -= Self::MAX_TIME;
 		}
 	}
 }
