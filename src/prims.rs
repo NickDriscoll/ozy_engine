@@ -1,60 +1,11 @@
+
 use crate::glutil;
 
 pub fn sphere_index_count(segments: usize, rings: usize) -> usize {	
 	6 * (segments * (rings - 2) + segments)
 }
 
-fn sphere_index_array(segments: usize, rings: usize) -> Vec<u16> {
-	//Compute sphere index data
-	let mut inds = vec![0u16; sphere_index_count(segments, rings)];
-
-	let segs = segments as u16;
-	for i in 0..(rings - 2) {
-		let offset = i * segments;
-		for j in 0..segs {
-			let ind = 6 * (offset + j as usize);
-			
-			inds[ind] = offset as u16 + j + 2;
-			inds[ind + 1] = offset as u16 + j + 1 + 2;
-			inds[ind + 2] = offset as u16 + j + segs + 2;
-			inds[ind + 3] = offset as u16 + j + segs + 1 + 2;
-			inds[ind + 4] = offset as u16 + j + segs + 2;
-			inds[ind + 5] = offset as u16 + j + 1 + 2;
-			
-			if j == segs - 1 {
-				inds[ind + 1] = offset as u16 + 2;
-				inds[ind + 5] = offset as u16 + 2;
-				inds[ind + 3] = offset as u16 + segs + 2;
-			}
-		}
-	}
-
-	let base_index = 6 * (segments * (rings - 2));
-	for i in 0..segments {
-		inds[base_index + i * 3] = 0;
-		inds[base_index + i * 3 + 1] = i as u16 + 3;
-		inds[base_index + i * 3 + 2] = i as u16 + 2;
-		
-		if i == segments - 1 {
-			inds[base_index + i * 3 + 1] = 2;
-		}
-	}
-
-	let base_index = 6 * (segments * (rings - 2)) + segments * 3;
-	for i in 0..segments {
-		inds[base_index + i * 3] = 1;
-		inds[base_index + i * 3 + 1] = (rings as u16 - 2) * segs + i as u16 + 2;
-		inds[base_index + i * 3 + 2] = (rings as u16 - 2) * segs + i as u16 + 3;
-		
-		if i == segments - 1 {
-			inds[base_index + i * 3 + 2] = (rings as u16 - 2) * segs + 2;
-		}
-	}
-
-	inds
-}
-
-pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> glutil::VertexArrayNames {
+pub fn sphere_vertex_buffer(radius: f32, segments: usize, rings: usize) -> Vec<f32> {
 	let attrib_offsets = [3, 3];
 	let attrib_size = {
 		let mut s = 0;
@@ -101,7 +52,71 @@ pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> glutil::VertexA
 		}
 	}
 
+	for v in verts.iter_mut() {
+		*v *= -1.0;
+	}
+
+	verts
+}
+
+pub fn sphere_index_array(segments: usize, rings: usize) -> Vec<u16> {
 	//Compute sphere index data
+	let mut inds = vec![0u16; sphere_index_count(segments, rings)];
+
+	let segs = segments.into();
+	for i in 0..(rings as usize - 2) {
+		let offset = i * segments;
+		for j in 0..segs {
+			let ind = 6 * (offset + j as usize);
+			
+			let offset = offset as u16;
+			let j = j as u16;
+			let segs = segs as u16;
+			inds[ind] = offset + j + 2;
+			inds[ind + 1] = offset + j + 1 + 2;
+			inds[ind + 2] = offset + j + segs + 2;
+			inds[ind + 3] = offset + j + segs + 1 + 2;
+			inds[ind + 4] = offset + j + segs + 2;
+			inds[ind + 5] = offset + j + 1 + 2;
+			
+			if j == segs - 1 {
+				inds[ind + 1] = offset + 2;
+				inds[ind + 5] = offset + 2;
+				inds[ind + 3] = offset + segs + 2;
+			}
+		}
+	}
+
+	let base_index = 6 * (segments * (rings - 2));
+	for i in 0..segments {
+		inds[base_index + i * 3] = 0;
+		inds[base_index + i * 3 + 1] = i as u16 + 3;
+		inds[base_index + i * 3 + 2] = i as u16 + 2;
+		
+		if i == segments - 1 {
+			inds[base_index + i * 3 + 1] = 2;
+		}
+	}
+
+	let base_index = 6 * (segments * (rings - 2)) + segments * 3;
+	for i in 0..segments {
+		inds[base_index + i * 3] = 1;
+		inds[base_index + i * 3 + 1] = (rings as u16 - 2) * segs as u16 + i as u16 + 2;
+		inds[base_index + i * 3 + 2] = (rings as u16 - 2) * segs as u16 + i as u16 + 3;
+		
+		if i == segments - 1 {
+			inds[base_index + i * 3 + 2] = (rings as u16 - 2) * segs as u16 + 2;
+		}
+	}
+
+	inds
+}
+
+pub fn sphere_vao(radius: f32, segments: usize, rings: usize) -> glutil::VertexArrayNames {
+	let attrib_offsets = [3, 3];
+
+	//Compute sphere vertex and index data
+	let verts = sphere_vertex_buffer(radius, segments, rings);
 	let inds = sphere_index_array(segments, rings);
 
 	unsafe { glutil::create_vertex_array_object(&verts, &inds, &attrib_offsets) }

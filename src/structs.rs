@@ -28,10 +28,6 @@ impl FrameTimer {
 		self.elapsed_time += self.delta_time;
 		self.last_frame_instant = Instant::now();
 		self.frame_count += 1;
-
-		if self.elapsed_time > Self::MAX_TIME {
-			self.elapsed_time -= Self::MAX_TIME;
-		}
 	}
 }
 
