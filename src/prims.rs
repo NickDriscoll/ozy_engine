@@ -52,9 +52,7 @@ pub fn sphere_vertex_buffer(radius: f32, segments: usize, rings: usize) -> Vec<f
 		}
 	}
 
-	for v in verts.iter_mut() {
-		*v *= -1.0;
-	}
+	let verts = verts.iter().map(|v|{ *v * -1.0 }).collect();
 
 	verts
 }
