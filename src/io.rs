@@ -4,6 +4,7 @@ use std::io::{Error, Read, Write};
 use std::string::String;
 use crate::structs::*;
 
+#[derive(Debug)]
 pub struct OzyMesh {
 	pub vertex_array: VertexArray,
 	pub texture_name: String,

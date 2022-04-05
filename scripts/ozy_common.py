@@ -97,7 +97,7 @@ def write_object_to_mesh_data(ob, model_transform, mesh_data):
                 uvs = Vector((u, -0.5))
             else:
                 uv_data = mesh.uv_layers.active.data
-                uvs = uv_data[i].uv
+                uvs = Vector((uv_data[i].uv.x, uv_data[i].uv.y * -1.0))
             
             tangent = normal_matrix @ loop.tangent
             normal = normal_matrix @ loop.normal

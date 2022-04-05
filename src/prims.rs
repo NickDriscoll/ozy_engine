@@ -183,6 +183,62 @@ pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize) -> glutil::V
 	vec2 uv;
 //
 */
+pub fn plane_vertex_buffer(width: usize, height: usize, scale: f32) -> Vec<f32> {
+	let floats_per_vertex = 14;
+	let mut vertex_buffer = vec![0.0; width * height * floats_per_vertex];
+
+	for j in 0..height {
+		let ypos = j as f32 * 2.0 / (height - 1) as f32 - 1.0;
+		let yuv = j as f32 / (height - 1) as f32;
+		let row_index = j * width * floats_per_vertex;
+		for i in 0..width {
+			let xpos = i as f32 * 2.0 / (width - 1) as f32 - 1.0;
+			let xuv = i as f32 / (width - 1) as f32;
+
+			let vertex_offset = row_index + i * floats_per_vertex;
+
+			vertex_buffer[vertex_offset] =     xpos * scale;
+			vertex_buffer[vertex_offset + 1] = ypos * scale;
+			vertex_buffer[vertex_offset + 2] = 0.0;
+
+			vertex_buffer[vertex_offset + 3] = 1.0;
+			vertex_buffer[vertex_offset + 4] = 0.0;
+			vertex_buffer[vertex_offset + 5] = 0.0;
+
+			vertex_buffer[vertex_offset + 6] = 0.0;
+			vertex_buffer[vertex_offset + 7] = 1.0;
+			vertex_buffer[vertex_offset + 8] = 0.0;
+
+			vertex_buffer[vertex_offset + 9] = 0.0;
+			vertex_buffer[vertex_offset + 10] = 0.0;
+			vertex_buffer[vertex_offset + 11] = 1.0;
+			
+			vertex_buffer[vertex_offset + 12] = xuv * scale;
+			vertex_buffer[vertex_offset + 13] = yuv * scale;
+
+		}
+	}
+
+	vertex_buffer
+}
+
+pub fn plane_index_buffer(width: usize, height: usize) -> Vec<u32> {
+	let mut indices = vec![0u32; (width - 1) * (height - 1) * 6];
+	for i in 0..(height - 1) {
+		for j in 0..(width - 1) {
+			let current_square = i * (width - 1) + j;
+
+			indices[current_square * 6] =     (current_square + i) as u32;
+			indices[current_square * 6 + 1] = (current_square + i + 1) as u32;
+			indices[current_square * 6 + 2] = (current_square + height + i) as u32;
+			indices[current_square * 6 + 3] = (current_square + i + 1) as u32;
+			indices[current_square * 6 + 4] = (current_square + height + i + 1) as u32;
+			indices[current_square * 6 + 5] = (current_square + height + i) as u32;
+		}
+	}
+	indices
+}
+
 pub fn plane_vao(vertices_width: usize) -> glutil::VertexArrayNames {
 	if vertices_width < 2 {
 		panic!("vertices_width must be greater than 2");
