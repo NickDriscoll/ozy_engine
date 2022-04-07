@@ -4,6 +4,97 @@ use std::io::{Error, Read, Write};
 use std::string::String;
 use crate::structs::*;
 
+/*
+struct DDS_PIXELFORMAT {
+  DWORD dwSize;
+  DWORD dwFlags;
+  DWORD dwFourCC;
+  DWORD dwRGBBitCount;
+  DWORD dwRBitMask;
+  DWORD dwGBitMask;
+  DWORD dwBBitMask;
+  DWORD dwABitMask;
+};
+*/
+#[derive(Default)]
+pub struct DDS_PixelFormat {
+    size: u32,
+    flags: u32,
+    four_cc: u32,
+    rgb_bitcount: u32,
+    r_bitmask: u32,
+    g_bitmask: u32,
+    b_bitmask: u32,
+    a_bitmask: u32,
+}
+
+/*
+typedef struct {
+     DWORD           dwSize;
+     DWORD           dwFlags;
+     DWORD           dwHeight;
+     DWORD           dwWidth;
+     DWORD           dwPitchOrLinearSize;
+     DWORD           dwDepth;
+     DWORD           dwMipMapCount;
+     DWORD           dwReserved1[11];
+     DDS_PIXELFORMAT ddspf;
+     DWORD           dwCaps;
+     DWORD           dwCaps2;
+     DWORD           dwCaps3;
+     DWORD           dwCaps4;
+     DWORD           dwReserved2;
+} DDS_HEADER;
+   */
+#[derive(Default)]
+pub struct DDSHeader {
+    size: u32,
+    flags: u32,
+    height: u32,
+    width: u32,
+    pitch_or_linear_size: u32,
+    depth: u32,
+    mipmap_count: u32,
+    reserved_1: [u32; 11],               //We love fields like this, don't we Microsoft?
+    spf: DDS_PixelFormat,
+    caps: u32,
+    caps2: u32,
+    caps3: u32,
+    caps4: u32,
+    reserved2: u32
+}
+
+//This function takes a dds file and gets the width and height of the image
+pub fn read_dds_dimensions(dds_file: &mut File) -> (u32, u32) {
+    const BC7_HEADER_SIZE: usize = 148;
+    let mut header_buffer = vec![0u8; BC7_HEADER_SIZE];
+
+    dds_file.read_exact(&mut header_buffer).unwrap();
+    
+    const DDSD_HEIGHT: u32 = 0x2;
+    const DDSD_WIDTH: u32 = 0x4;
+    let flags = u32::from_le_bytes([header_buffer[4], header_buffer[5], header_buffer[6], header_buffer[7]]);
+
+    let height_bytes = [header_buffer[8], header_buffer[9], header_buffer[10], header_buffer[11]];
+    let width_bytes = [header_buffer[12], header_buffer[13], header_buffer[14], header_buffer[15]];
+    
+    let width = u32::from_le_bytes(width_bytes);
+    let height;
+    if flags & DDSD_HEIGHT == 0 {
+        height = width;
+    } else {
+        height = u32::from_le_bytes(height_bytes);
+    }
+
+    println!("Every u32 in the header in order:");
+    for i in 0..BC7_HEADER_SIZE/4 {
+        let value = u32::from_le_bytes([header_buffer[4 * i], header_buffer[4 * i + 1], header_buffer[4 * i + 2], header_buffer[4 * i + 3]]);
+        println!("{}", value);
+    }
+
+    (width, height)
+}
+
 #[derive(Debug)]
 pub struct OzyMesh {
 	pub vertex_array: VertexArray,
