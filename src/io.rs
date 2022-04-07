@@ -48,20 +48,44 @@ typedef struct {
    */
 #[derive(Default)]
 pub struct DDSHeader {
-    size: u32,
-    flags: u32,
-    height: u32,
-    width: u32,
-    pitch_or_linear_size: u32,
-    depth: u32,
-    mipmap_count: u32,
-    reserved_1: [u32; 11],               //We love fields like this, don't we Microsoft?
-    spf: DDS_PixelFormat,
-    caps: u32,
-    caps2: u32,
-    caps3: u32,
-    caps4: u32,
-    reserved2: u32
+    pub magic_word: u32,
+    pub size: u32,
+    pub flags: u32,
+    pub height: u32,
+    pub width: u32,
+    pub pitch_or_linear_size: u32,
+    pub depth: u32,
+    pub mipmap_count: u32,
+    pub reserved_1: [u32; 11],               //We love fields like this, don't we Microsoft?
+    pub spf: DDS_PixelFormat,
+    pub caps: u32,
+    pub caps2: u32,
+    pub caps3: u32,
+    pub caps4: u32,
+    pub reserved2: u32
+}
+
+impl DDSHeader {
+    pub fn from_file(dds_file: &mut File) -> Self {
+        const BC7_HEADER_SIZE: usize = 148;
+        let mut header_buffer = vec![0u8; BC7_HEADER_SIZE];
+    
+        dds_file.read_exact(&mut header_buffer).unwrap();
+    
+        let height = read_u32_from_le_bytes(&header_buffer, 12);
+        let width = read_u32_from_le_bytes(&header_buffer, 16);
+        let bytes_per_scanline = read_u32_from_le_bytes(&header_buffer, 20);
+        let mipmap_count = read_u32_from_le_bytes(&header_buffer, 28);
+
+
+        DDSHeader {
+            height,
+            width,
+            pitch_or_linear_size: bytes_per_scanline,
+            mipmap_count,
+            ..Default::default()
+        }
+    }
 }
 
 //This function takes a dds file and gets the width and height of the image
@@ -70,27 +94,12 @@ pub fn read_dds_dimensions(dds_file: &mut File) -> (u32, u32) {
     let mut header_buffer = vec![0u8; BC7_HEADER_SIZE];
 
     dds_file.read_exact(&mut header_buffer).unwrap();
-    
-    const DDSD_HEIGHT: u32 = 0x2;
-    const DDSD_WIDTH: u32 = 0x4;
-    let flags = u32::from_le_bytes([header_buffer[4], header_buffer[5], header_buffer[6], header_buffer[7]]);
 
-    let height_bytes = [header_buffer[8], header_buffer[9], header_buffer[10], header_buffer[11]];
-    let width_bytes = [header_buffer[12], header_buffer[13], header_buffer[14], header_buffer[15]];
-    
-    let width = u32::from_le_bytes(width_bytes);
-    let height;
-    if flags & DDSD_HEIGHT == 0 {
-        height = width;
-    } else {
-        height = u32::from_le_bytes(height_bytes);
-    }
-
-    println!("Every u32 in the header in order:");
-    for i in 0..BC7_HEADER_SIZE/4 {
-        let value = u32::from_le_bytes([header_buffer[4 * i], header_buffer[4 * i + 1], header_buffer[4 * i + 2], header_buffer[4 * i + 3]]);
-        println!("{}", value);
-    }
+    let height = read_u32_from_le_bytes(&header_buffer, 12);
+    let width = read_u32_from_le_bytes(&header_buffer, 16);
+    let bytes_per_scanline = read_u32_from_le_bytes(&header_buffer, 20);
+    let mipmap_count = read_u32_from_le_bytes(&header_buffer, 28);
+    println!("{} : {}", bytes_per_scanline, mipmap_count);
 
     (width, height)
 }
@@ -209,6 +218,10 @@ impl OzyMesh {
             is_transparent
         })
     }
+}
+
+pub fn read_u32_from_le_bytes(bytes: &[u8], offset: usize) -> u32 {
+    u32::from_le_bytes([bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]])
 }
 
 pub fn read_u8(file: &mut File) -> Result<u8, Error> {
