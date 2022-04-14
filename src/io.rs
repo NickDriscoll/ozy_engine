@@ -1,3 +1,4 @@
+#![allow(non_camel_case_types)]
 use std::mem;
 use std::fs::File;
 use std::io::{Error, Read, Write};
@@ -56,7 +57,7 @@ pub struct DDSHeader {
     pub pitch_or_linear_size: u32,
     pub depth: u32,
     pub mipmap_count: u32,
-    pub reserved_1: [u32; 11],               //We love fields like this, don't we Microsoft?
+    pub reserved_1: [u32; 11],
     pub spf: DDS_PixelFormat,
     pub caps: u32,
     pub caps2: u32,
@@ -77,7 +78,6 @@ impl DDSHeader {
         let bytes_per_scanline = read_u32_from_le_bytes(&header_buffer, 20);
         let mipmap_count = read_u32_from_le_bytes(&header_buffer, 28);
 
-
         DDSHeader {
             height,
             width,
@@ -86,22 +86,6 @@ impl DDSHeader {
             ..Default::default()
         }
     }
-}
-
-//This function takes a dds file and gets the width and height of the image
-pub fn read_dds_dimensions(dds_file: &mut File) -> (u32, u32) {
-    const BC7_HEADER_SIZE: usize = 148;
-    let mut header_buffer = vec![0u8; BC7_HEADER_SIZE];
-
-    dds_file.read_exact(&mut header_buffer).unwrap();
-
-    let height = read_u32_from_le_bytes(&header_buffer, 12);
-    let width = read_u32_from_le_bytes(&header_buffer, 16);
-    let bytes_per_scanline = read_u32_from_le_bytes(&header_buffer, 20);
-    let mipmap_count = read_u32_from_le_bytes(&header_buffer, 28);
-    println!("{} : {}", bytes_per_scanline, mipmap_count);
-
-    (width, height)
 }
 
 #[derive(Debug)]

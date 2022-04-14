@@ -1,4 +1,6 @@
 
+use std::collections::HashMap;
+
 use crate::glutil;
 
 pub fn sphere_index_count(segments: usize, rings: usize) -> usize {	
@@ -183,6 +185,22 @@ pub fn debug_sphere_vao(radius: f32, segments: usize, rings: usize) -> glutil::V
 	vec2 uv;
 //
 */
+pub fn plane_index_buffer(width: usize, height: usize) -> Vec<u32> {
+	let mut indices = vec![0u32; (width - 1) * (height - 1) * 6];
+	for i in 0..(height - 1) {
+		for j in 0..(width - 1) {
+			let current_square = i * (width - 1) + j;
+			indices[current_square * 6] =     (current_square + i) as u32;
+			indices[current_square * 6 + 1] = (current_square + i + 1) as u32;
+			indices[current_square * 6 + 2] = (current_square + height + i) as u32;
+			indices[current_square * 6 + 3] = (current_square + i + 1) as u32;
+			indices[current_square * 6 + 4] = (current_square + height + i + 1) as u32;
+			indices[current_square * 6 + 5] = (current_square + height + i) as u32;
+		}
+	}
+	indices
+}
+
 pub fn plane_vertex_buffer(width: usize, height: usize, scale: f32) -> Vec<f32> {
 	let floats_per_vertex = 14;
 	let mut vertex_buffer = vec![0.0; width * height * floats_per_vertex];
@@ -222,21 +240,119 @@ pub fn plane_vertex_buffer(width: usize, height: usize, scale: f32) -> Vec<f32> 
 	vertex_buffer
 }
 
-pub fn plane_index_buffer(width: usize, height: usize) -> Vec<u32> {
-	let mut indices = vec![0u32; (width - 1) * (height - 1) * 6];
-	for i in 0..(height - 1) {
-		for j in 0..(width - 1) {
-			let current_square = i * (width - 1) + j;
+pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, height: usize, scale: f32, generator: &T) -> Vec<f32> {
+	let floats_per_vertex = 14;
+	let mut vertex_buffer = vec![0.0; width * height * floats_per_vertex];
+	let mut face_normals = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
+	//let mut face_tan_assoc = vec![glm::zero(); (width - 1) * (height - 1)];
+	//let mut face_bitan_assoc = vec![glm::zero(); (width - 1) * (height - 1)];
+	
+	//Build map of vertex indices to lists of faces
+	let index_buffer = plane_index_buffer(width, height);
+	let mut vertex_face_map: HashMap<u32, Vec<u32>> = HashMap::with_capacity(index_buffer.len() / 3);
+	for i in (0..index_buffer.len()).step_by(3) {
+		let tri_id = i / 3;
 
-			indices[current_square * 6] =     (current_square + i) as u32;
-			indices[current_square * 6 + 1] = (current_square + i + 1) as u32;
-			indices[current_square * 6 + 2] = (current_square + height + i) as u32;
-			indices[current_square * 6 + 3] = (current_square + i + 1) as u32;
-			indices[current_square * 6 + 4] = (current_square + height + i + 1) as u32;
-			indices[current_square * 6 + 5] = (current_square + height + i) as u32;
+		for j in 0..3 {
+			match vertex_face_map.get_mut(&index_buffer[i + j]) {
+				Some(list) => {
+					list.push(tri_id as u32);
+				}
+				None => {
+					vertex_face_map.insert(index_buffer[i + j], vec![tri_id as u32]);
+				}
+			}
 		}
 	}
-	indices
+
+	//Initial pass to fill out positions and uv-coordinates
+	for j in 0..height {
+		let ypos = j as f32 * 2.0 / (height - 1) as f32 - 1.0;
+		let yuv = j as f32 / (height - 1) as f32;
+		let row_index = j * width * floats_per_vertex;
+		for i in 0..width {
+			let xpos = i as f32 * 2.0 / (width - 1) as f32 - 1.0;
+			let xuv = i as f32 / (width - 1) as f32;
+
+			let vertex_offset = row_index + i * floats_per_vertex;
+
+			vertex_buffer[vertex_offset] =     xpos * scale;
+			vertex_buffer[vertex_offset + 1] = ypos * scale;
+
+			let z = generator.get([vertex_buffer[vertex_offset] as f64, vertex_buffer[vertex_offset + 1] as f64]) as f32;
+			vertex_buffer[vertex_offset + 2] = z * scale;
+
+			vertex_buffer[vertex_offset + 3] = 1.0;
+			vertex_buffer[vertex_offset + 4] = 0.0;
+			vertex_buffer[vertex_offset + 5] = 0.0;
+
+			vertex_buffer[vertex_offset + 6] = 0.0;
+			vertex_buffer[vertex_offset + 7] = 1.0;
+			vertex_buffer[vertex_offset + 8] = 0.0;
+
+			vertex_buffer[vertex_offset + 9] = 0.0;
+			vertex_buffer[vertex_offset + 10] = 0.0;
+			vertex_buffer[vertex_offset + 11] = 1.0;
+			
+			vertex_buffer[vertex_offset + 12] = xuv * scale;
+			vertex_buffer[vertex_offset + 13] = yuv * scale;
+
+		}
+	}
+
+	//Iterating over each two-triangle square
+	for j in 0..(height - 1) {
+		for i in 0..(width - 1) {			
+			//Compute index of this square
+			let square_index = j * (width - 1) + i;
+
+			//Get the four indices of this square's vertices
+			let i0 = (j * width + i) * floats_per_vertex;
+			let i1 = (j * width + i + 1) * floats_per_vertex;
+			let i2 = (j * width + i + width) * floats_per_vertex;
+			let i3 = (j * width + i + width + 1) * floats_per_vertex;
+
+			//First tri
+			let p0 = glm::vec3(vertex_buffer[i0], vertex_buffer[i0 + 1], vertex_buffer[i0 + 2]);
+			let p1 = glm::vec3(vertex_buffer[i1], vertex_buffer[i1 + 1], vertex_buffer[i1 + 2]);
+			let p2 = glm::vec3(vertex_buffer[i2], vertex_buffer[i2 + 1], vertex_buffer[i2 + 2]);
+
+			let e1 = p1 - p0;
+			let e2 = p2 - p0;
+			let face_normal = glm::normalize(&glm::cross(&e1, &e2));
+			face_normals[square_index * 2] = face_normal;
+			
+
+			//Second tri
+			let p0 = glm::vec3(vertex_buffer[i1], vertex_buffer[i1 + 1], vertex_buffer[i1 + 2]);
+			let p1 = glm::vec3(vertex_buffer[i2], vertex_buffer[i2 + 1], vertex_buffer[i2 + 2]);
+			let p2 = glm::vec3(vertex_buffer[i3], vertex_buffer[i3 + 1], vertex_buffer[i3 + 2]);
+
+			let e1 = p1 - p0;
+			let e2 = p2 - p0;
+			let face_normal = glm::normalize(&glm::cross(&e2, &e1));
+			face_normals[square_index * 2 + 1] = face_normal;
+
+		}
+	}
+
+	//Averaging per-face data into vertex data
+	for i in (0..vertex_buffer.len()).step_by(floats_per_vertex) {
+		let vert_id = i as u32 / floats_per_vertex as u32;
+
+		let vert_faces = vertex_face_map.get(&vert_id).unwrap();
+		let mut averaged_normal: glm::TVec3<f32> = glm::zero();
+		for &face_id in vert_faces {
+			averaged_normal += face_normals[face_id as usize];
+		}
+		averaged_normal = glm::normalize(&averaged_normal);
+
+		vertex_buffer[i + 9] = averaged_normal.x;
+		vertex_buffer[i + 10] = averaged_normal.y;
+		vertex_buffer[i + 11] = averaged_normal.z;
+	}
+
+	vertex_buffer
 }
 
 pub fn plane_vao(vertices_width: usize) -> glutil::VertexArrayNames {
@@ -297,6 +413,47 @@ pub fn plane_vao(vertices_width: usize) -> glutil::VertexArrayNames {
 	}
 
 	unsafe { glutil::create_vertex_array_object(&vertex_buffer, &indices, &attribute_offsets) }
+}
+
+pub fn skybox_cube_vertex_buffer() -> Vec<f32> {
+	vec![
+		-1.0, -1.0, -1.0,
+		1.0, -1.0, -1.0,
+		-1.0, 1.0, -1.0,
+		1.0, 1.0, -1.0,
+		-1.0, -1.0, 1.0,
+		-1.0, 1.0, 1.0,
+		1.0, -1.0, 1.0,
+		1.0, 1.0, 1.0
+	]
+}
+
+pub fn skybox_cube_index_buffer() -> Vec<u32> {
+	vec![
+		//Front
+		0, 1, 2,
+		3, 2, 1,
+        
+        //Left
+		0, 2, 4,
+		2, 5, 4,
+
+		//Right
+		3, 1, 6,
+		7, 3, 6,
+
+		//Back
+		5, 7, 4,
+		7, 6, 4,
+
+		//Bottom
+	    4, 1, 0,
+    	4, 6, 1,
+        
+        //Top
+		7, 5, 2,
+		7, 2, 3
+	]
 }
 
 pub fn skybox_cube_vao() -> glutil::VertexArrayNames {
