@@ -192,10 +192,10 @@ pub fn plane_index_buffer(width: usize, height: usize) -> Vec<u32> {
 			let current_square = i * (width - 1) + j;
 			indices[current_square * 6] =     (current_square + i) as u32;
 			indices[current_square * 6 + 1] = (current_square + i + 1) as u32;
-			indices[current_square * 6 + 2] = (current_square + height + i) as u32;
+			indices[current_square * 6 + 2] = (current_square + width + i) as u32;
 			indices[current_square * 6 + 3] = (current_square + i + 1) as u32;
-			indices[current_square * 6 + 4] = (current_square + height + i + 1) as u32;
-			indices[current_square * 6 + 5] = (current_square + height + i) as u32;
+			indices[current_square * 6 + 4] = (current_square + width + i + 1) as u32;
+			indices[current_square * 6 + 5] = (current_square + width + i) as u32;
 		}
 	}
 	indices
@@ -246,24 +246,6 @@ pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, 
 	let mut face_normals = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
 	//let mut face_tan_assoc = vec![glm::zero(); (width - 1) * (height - 1)];
 	//let mut face_bitan_assoc = vec![glm::zero(); (width - 1) * (height - 1)];
-	
-	//Build map of vertex indices to lists of faces
-	let index_buffer = plane_index_buffer(width, height);
-	let mut vertex_face_map: HashMap<u32, Vec<u32>> = HashMap::with_capacity(index_buffer.len() / 3);
-	for i in (0..index_buffer.len()).step_by(3) {
-		let tri_id = i / 3;
-
-		for j in 0..3 {
-			match vertex_face_map.get_mut(&index_buffer[i + j]) {
-				Some(list) => {
-					list.push(tri_id as u32);
-				}
-				None => {
-					vertex_face_map.insert(index_buffer[i + j], vec![tri_id as u32]);
-				}
-			}
-		}
-	}
 
 	//Initial pass to fill out positions and uv-coordinates
 	for j in 0..height {
@@ -299,6 +281,10 @@ pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, 
 
 		}
 	}
+	
+	//Build map of vertex indices to lists of faces
+	let index_buffer = plane_index_buffer(width, height);
+	let mut vertex_face_map: HashMap<u32, Vec<u32>> = HashMap::with_capacity(index_buffer.len() / 3);
 
 	//Iterating over each two-triangle square
 	for j in 0..(height - 1) {
@@ -307,10 +293,44 @@ pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, 
 			let square_index = j * (width - 1) + i;
 
 			//Get the four indices of this square's vertices
-			let i0 = (j * width + i) * floats_per_vertex;
-			let i1 = (j * width + i + 1) * floats_per_vertex;
-			let i2 = (j * width + i + width) * floats_per_vertex;
-			let i3 = (j * width + i + width + 1) * floats_per_vertex;
+			let i0 = j * width + i;
+			let i1 = j * width + i + 1;
+			let i2 = j * width + i + width;
+			let i3 = j * width + i + width + 1;
+
+			let tri_id = 2 * square_index as u32;
+			match vertex_face_map.get_mut(&(i0 as u32)) {
+				Some(list) => { list.push(tri_id); }
+				None => { vertex_face_map.insert(i0 as u32, vec![tri_id]); }
+			}
+			match vertex_face_map.get_mut(&(i1 as u32)) {
+				Some(list) => { list.push(tri_id); }
+				None => { vertex_face_map.insert(i1 as u32, vec![tri_id]); }
+			}
+			match vertex_face_map.get_mut(&(i2 as u32)) {
+				Some(list) => { list.push(tri_id); }
+				None => { vertex_face_map.insert(i2 as u32, vec![tri_id]); }
+			}
+
+			let tri_id = 2 * square_index as u32 + 1;
+			match vertex_face_map.get_mut(&(i1 as u32)) {
+				Some(list) => { list.push(tri_id); }
+				None => { vertex_face_map.insert(i1 as u32, vec![tri_id]); }
+			}
+			match vertex_face_map.get_mut(&(i2 as u32)) {
+				Some(list) => { list.push(tri_id); }
+				None => { vertex_face_map.insert(i2 as u32, vec![tri_id]); }
+			}
+			match vertex_face_map.get_mut(&(i3 as u32)) {
+				Some(list) => { list.push(tri_id); }
+				None => { vertex_face_map.insert(i3 as u32, vec![tri_id]); }
+			}
+
+			//Get the four indices of this square's vertices
+			let i0 = i0 * floats_per_vertex;
+			let i1 = i1 * floats_per_vertex;
+			let i2 = i2 * floats_per_vertex;
+			let i3 = i3 * floats_per_vertex;
 
 			//First tri
 			let p0 = glm::vec3(vertex_buffer[i0], vertex_buffer[i0 + 1], vertex_buffer[i0 + 2]);
