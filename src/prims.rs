@@ -271,10 +271,6 @@ pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, 
 			vertex_buffer[vertex_offset + 6] = 0.0;
 			vertex_buffer[vertex_offset + 7] = 1.0;
 			vertex_buffer[vertex_offset + 8] = 0.0;
-
-			vertex_buffer[vertex_offset + 9] = 0.0;
-			vertex_buffer[vertex_offset + 10] = 0.0;
-			vertex_buffer[vertex_offset + 11] = 1.0;
 			
 			vertex_buffer[vertex_offset + 12] = xuv * scale;
 			vertex_buffer[vertex_offset + 13] = yuv * scale;
@@ -341,7 +337,6 @@ pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, 
 			let e2 = p2 - p0;
 			let face_normal = glm::normalize(&glm::cross(&e1, &e2));
 			face_normals[square_index * 2] = face_normal;
-			
 
 			//Second tri
 			let p0 = glm::vec3(vertex_buffer[i1], vertex_buffer[i1 + 1], vertex_buffer[i1 + 2]);
@@ -352,7 +347,6 @@ pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, 
 			let e2 = p2 - p0;
 			let face_normal = glm::normalize(&glm::cross(&e2, &e1));
 			face_normals[square_index * 2 + 1] = face_normal;
-
 		}
 	}
 
