@@ -240,7 +240,7 @@ pub fn plane_vertex_buffer(width: usize, height: usize, scale: f32) -> Vec<f32> 
 	vertex_buffer
 }
 
-pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, height: usize, scale: f32, generator: &T) -> Vec<f32> {
+pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, height: usize, scale: f32, generator: F) -> Vec<f32> {
 	let floats_per_vertex = 14;
 	let mut vertex_buffer = vec![0.0; width * height * floats_per_vertex];
 	let mut face_normals = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
@@ -258,11 +258,12 @@ pub fn perturbed_plane_vertex_buffer<T: noise::NoiseFn<[f64; 2]>>(width: usize, 
 
 			let vertex_offset = row_index + i * floats_per_vertex;
 
-			vertex_buffer[vertex_offset] =     xpos * scale;
-			vertex_buffer[vertex_offset + 1] = ypos * scale;
-
-			let z = generator.get([vertex_buffer[vertex_offset] as f64, vertex_buffer[vertex_offset + 1] as f64]) as f32;
-			vertex_buffer[vertex_offset + 2] = z * scale;
+			let x = xpos * scale;
+			let y = ypos * scale;
+			let z = generator(x as f64, y as f64) as f32;
+			vertex_buffer[vertex_offset] =     x;
+			vertex_buffer[vertex_offset + 1] = y;
+			vertex_buffer[vertex_offset + 2] = z;
 
 			vertex_buffer[vertex_offset + 3] = 1.0;
 			vertex_buffer[vertex_offset + 4] = 0.0;
