@@ -77,13 +77,13 @@ pub struct Triangle {
 }
 
 #[derive(Debug)]
-pub struct Terrain {
+pub struct MeshCollision {
     pub vertices: Vec<glm::TVec3<f32>>,
-    pub indices: Vec<u16>,
+    pub indices: Vec<u32>,
     pub face_normals: Vec<glm::TVec3<f32>>
 }
 
-impl Terrain {
+impl MeshCollision {
     pub fn from_ozt(path: &str) -> Self {
         let mut terrain_file = match File::open(path) {
             Ok(file) => { file }
@@ -131,7 +131,7 @@ impl Terrain {
                 Ok(n) => { n }
                 Err(e) => { panic!("Couldn't read byte count: {}", e); }
             };
-            indices
+            indices.iter().map(|&n|{n as u32}).collect()
         };
 
         let face_normals = {
@@ -236,7 +236,7 @@ pub struct RayTerrainCollision {
 }
 
 //Returns the first intersection point between a ray and terrain mesh
-pub fn ray_hit_terrain(terrain: &Terrain, ray: &Ray) -> Option<RayTerrainCollision> {
+pub fn ray_hit_terrain(terrain: &MeshCollision, ray: &Ray) -> Option<RayTerrainCollision> {
     let mut smallest_t = f32::INFINITY;
     let mut closest_intersection = None;
     for i in (0..terrain.indices.len()).step_by(3) {
@@ -300,7 +300,7 @@ pub fn segment_plane_tallest_collision(segment: &LineSegment, planes: &[Plane]) 
     collision
 }
 
-pub fn get_terrain_triangle(terrain: &Terrain, triangle_index: usize) -> Triangle {    
+pub fn get_terrain_triangle(terrain: &MeshCollision, triangle_index: usize) -> Triangle {    
     //Get the vertices of the triangle
     let a = terrain.vertices[terrain.indices[triangle_index] as usize];
     let b = terrain.vertices[terrain.indices[triangle_index + 1] as usize];
