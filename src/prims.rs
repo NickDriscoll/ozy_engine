@@ -1,5 +1,5 @@
 
-use std::collections::HashMap;
+use std::{collections::HashMap, os::windows::raw};
 
 use crate::glutil;
 
@@ -244,8 +244,8 @@ pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, heigh
 	let floats_per_vertex = 14;
 	let mut vertex_buffer = vec![0.0; width * height * floats_per_vertex];
 	let mut face_normals = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
-	//let mut face_tan_assoc = vec![glm::zero(); (width - 1) * (height - 1)];
-	//let mut face_bitan_assoc = vec![glm::zero(); (width - 1) * (height - 1)];
+	let mut face_tangents = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
+	let mut face_bitangents = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
 
 	//Initial pass to fill out positions and uv-coordinates
 	for j in 0..height {
@@ -283,7 +283,8 @@ pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, heigh
 	let index_buffer = plane_index_buffer(width, height);
 	let mut vertex_face_map: HashMap<u32, Vec<u32>> = HashMap::with_capacity(index_buffer.len() / 3);
 
-	//Iterating over each two-triangle square
+	//Iterating over each two-triangle square to get the TBN vectors
+	//Tangent and Bitangent formula lifted from here https://www.cs.upc.edu/~virtual/G/1.%20Teoria/06.%20Textures/Tangent%20Space%20Calculation.pdf
 	for j in 0..(height - 1) {
 		for i in 0..(width - 1) {			
 			//Compute index of this square
@@ -334,33 +335,85 @@ pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, heigh
 			let p1 = glm::vec3(vertex_buffer[i1], vertex_buffer[i1 + 1], vertex_buffer[i1 + 2]);
 			let p2 = glm::vec3(vertex_buffer[i2], vertex_buffer[i2 + 1], vertex_buffer[i2 + 2]);
 
+			//Compute normal
 			let e1 = p1 - p0;
 			let e2 = p2 - p0;
 			let face_normal = glm::normalize(&glm::cross(&e1, &e2));
 			face_normals[square_index * 2] = face_normal;
+
+			//Now computing tangent and bitangent
+			let (u0, v0) = (vertex_buffer[i0 + 12], vertex_buffer[i0 + 13]);
+			let (u1, v1) = (vertex_buffer[i1 + 12], vertex_buffer[i1 + 13]);
+			let (u2, v2) = (vertex_buffer[i2 + 12], vertex_buffer[i2 + 13]);
+			let q1 = p1 - p0;
+			let q2 = p2 - p0;
+			let (s1, t1) = (u1 - u0, v1 - v0);
+			let (s2, t2) = (u2 - u0, v2 - v0);
+			let raw_tanbitan = 1.0 / (s1 * t2 - s2 * t1) * glm::mat2(t2, -t1, -s2, s1) * glm::mat2x3(q1.x, q1.y, q1.z, q2.x, q2.y, q2.z);
+			let face_tangent = glm::normalize(&glm::vec3(raw_tanbitan[0], raw_tanbitan[2], raw_tanbitan[4]));
+			let face_bitangent = glm::normalize(&glm::vec3(raw_tanbitan[1], raw_tanbitan[3], raw_tanbitan[5]));
+
+			face_tangents[square_index * 2] = face_tangent;
+			face_bitangents[square_index * 2] = face_bitangent;
 
 			//Second tri
 			let p0 = glm::vec3(vertex_buffer[i1], vertex_buffer[i1 + 1], vertex_buffer[i1 + 2]);
 			let p1 = glm::vec3(vertex_buffer[i2], vertex_buffer[i2 + 1], vertex_buffer[i2 + 2]);
 			let p2 = glm::vec3(vertex_buffer[i3], vertex_buffer[i3 + 1], vertex_buffer[i3 + 2]);
 
+			//Compute normal
 			let e1 = p1 - p0;
 			let e2 = p2 - p0;
 			let face_normal = glm::normalize(&glm::cross(&e2, &e1));
 			face_normals[square_index * 2 + 1] = face_normal;
+
+			//Now computing tangent and bitangent
+			let (u0, v0) = (vertex_buffer[i1 + 12], vertex_buffer[i1 + 13]);
+			let (u1, v1) = (vertex_buffer[i2 + 12], vertex_buffer[i2 + 13]);
+			let (u2, v2) = (vertex_buffer[i3 + 12], vertex_buffer[i3 + 13]);
+			let q1 = p1 - p0;
+			let q2 = p2 - p0;
+			let (s1, t1) = (u1 - u0, v1 - v0);
+			let (s2, t2) = (u2 - u0, v2 - v0);
+			let raw_tanbitan = 1.0 / (s1 * t2 - s2 * t1) * glm::mat2(t2, -t1, -s2, s1) * glm::mat2x3(q1.x, q1.y, q1.z, q2.x, q2.y, q2.z);
+			let face_tangent = glm::normalize(&glm::vec3(raw_tanbitan[0], raw_tanbitan[2], raw_tanbitan[4]));
+			let face_bitangent = glm::normalize(&glm::vec3(raw_tanbitan[1], raw_tanbitan[3], raw_tanbitan[5]));
+
+			face_tangents[square_index * 2 + 1] = face_tangent;
+			face_bitangents[square_index * 2 + 1] = face_bitangent;
 		}
 	}
 
 	//Averaging per-face data into vertex data
 	for i in (0..vertex_buffer.len()).step_by(floats_per_vertex) {
 		let vert_id = i as u32 / floats_per_vertex as u32;
-
 		let vert_faces = vertex_face_map.get(&vert_id).unwrap();
+
+		let mut averaged_tangent: glm::TVec3<f32> = glm::zero();
+		for &face_id in vert_faces {
+			averaged_tangent += face_tangents[face_id as usize];
+		}
+		averaged_tangent = glm::normalize(&averaged_tangent);
+
+		let mut averaged_bitangent: glm::TVec3<f32> = glm::zero();
+		for &face_id in vert_faces {
+			averaged_bitangent += face_bitangents[face_id as usize];
+		}
+		averaged_bitangent = glm::normalize(&averaged_bitangent);
+
 		let mut averaged_normal: glm::TVec3<f32> = glm::zero();
 		for &face_id in vert_faces {
 			averaged_normal += face_normals[face_id as usize];
 		}
 		averaged_normal = glm::normalize(&averaged_normal);
+
+		vertex_buffer[i + 3] = averaged_tangent.x;
+		vertex_buffer[i + 4] = averaged_tangent.y;
+		vertex_buffer[i + 5] = averaged_tangent.z;
+
+		vertex_buffer[i + 6] = averaged_bitangent.x;
+		vertex_buffer[i + 7] = averaged_bitangent.y;
+		vertex_buffer[i + 8] = averaged_bitangent.z;
 
 		vertex_buffer[i + 9] = averaged_normal.x;
 		vertex_buffer[i + 10] = averaged_normal.y;
