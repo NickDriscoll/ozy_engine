@@ -88,6 +88,11 @@ impl DDSHeader {
     }
 }
 
+pub enum IndexType {
+    BIT16,
+    BIT32
+}
+
 #[derive(Debug)]
 pub struct OzyMesh {
 	pub vertex_array: VertexArray,
@@ -187,6 +192,7 @@ impl OzyMesh {
             Ok(n) => { n }
             Err(_) => { return None; }
         };
+        let indices: Vec<u32> = indices.iter().map(|&n|{n as u32}).collect();
     
         let vertex_array = VertexArray {
             vertices,
@@ -202,6 +208,112 @@ impl OzyMesh {
             is_transparent
         })
     }
+
+    pub fn load_32bit_idx(path: &str) -> Option<Self> {
+        let mut texture_name = String::new();
+        let mut colors = vec![];
+
+        //Open the file
+        let mut model_file = match File::open(path) {
+            Ok(file) => { file }
+            Err(e) => {
+                println!("Unable to open \"{}\": {}", path, e);
+                return None;
+            }
+        };
+
+        //Check how many solid colors there are
+        //If 0, it means this model uses textures
+        let color_count = match read_u8(&mut model_file) {
+            Ok(count) => { count as usize }
+            Err(e) => {
+                println!("{}", e);
+                return None;
+            }
+        };
+
+        //Branching on whether or not the model is textured or uses solid colors
+        if color_count == 0 {
+            //Read the material name
+            texture_name = match read_pascal_strings(&mut model_file, 1) {
+                Ok(v) => { v[0].clone() }
+                Err(_) => { return None; }
+            };
+        } else {
+            //Read the color f32s into a Vec
+            colors = match read_f32_data(&mut model_file, color_count * 4) {
+                Ok(data_block) => { data_block }
+                Err(e) => {
+                    println!("Error reading color data: {}", e);
+                    return None;
+                }
+            };
+        }
+
+        //Transparency flag
+        let is_transparent = match read_u8(&mut model_file) {
+            Ok(flag) => { flag != 0 }
+            Err(e) => {
+                println!("Error reading transparency flag: {}", e);
+                return None;
+            }
+        };
+
+        //The uv_velocity
+        let uv_velocity = match read_f32_data(&mut model_file, 2) {
+            Ok(data) => { [data[0], data[1]] }
+            Err(e) => { 
+                println!("Error reading uv_velocity: {}", e);
+                return None;
+            }
+        };
+    
+        //The length of the vertex data section of the file, in bytes
+        let vertices_size = match read_u32(&mut model_file) {
+            Ok(n) => { n }
+            Err(_) => { return None; }
+        };
+    
+        let vertices = {
+            let mut bytes = vec![0; vertices_size as usize];
+            if let Err(e) = model_file.read_exact(bytes.as_mut_slice()) {
+                println!("Error reading vertex data from file: {}", e);
+                return None;
+            }
+    
+            let mut v = Vec::with_capacity(vertices_size as usize / mem::size_of::<f32>());
+            for i in (0..bytes.len()).step_by(mem::size_of::<f32>()) {
+                let b = [bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]];
+                v.push(f32::from_le_bytes(b));
+            }
+            v
+        };
+        
+        let index_count = match read_u32(&mut model_file) {
+            Ok(n) => { (n / mem::size_of::<u16>() as u32) as usize }
+            Err(_) => { return None; }
+        };
+        
+        let indices = match read_u32_data(&mut model_file, index_count) {
+            Ok(n) => { n }
+            Err(_) => { return None; }
+        };
+    
+        let vertex_array = VertexArray {
+            vertices,
+            indices,
+            attribute_offsets: vec![3, 3, 3, 3, 2]
+        };
+    
+        Some(OzyMesh {
+            vertex_array,
+            texture_name,
+            uv_velocity,
+            colors,
+            is_transparent
+        })
+    }
+
 }
 
 pub fn read_u32_from_le_bytes(bytes: &[u8], offset: usize) -> u32 {

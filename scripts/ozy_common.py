@@ -207,7 +207,8 @@ def mesh_data_to_file(output, mesh_data):
     #Write the index data
     output.write(size_as_u32(mesh_data.index_buffer, 2))
     for index in mesh_data.index_buffer:
-        output.write(index.to_bytes(2, "little"))
+        #output.write(index.to_bytes(2, "little"))
+        output.write(index.to_bytes(4, "little"))
 
 class TerrainData:
     def __init__(self):

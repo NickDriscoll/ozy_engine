@@ -34,7 +34,7 @@ impl FrameTimer {
 #[derive(Debug)]
 pub struct VertexArray {
 	pub vertices: Vec<f32>,
-	pub indices: Vec<u16>,
+	pub indices: Vec<u32>,
 	pub attribute_offsets: Vec<i32>
 }
 
