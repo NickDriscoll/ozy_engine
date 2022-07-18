@@ -241,7 +241,7 @@ pub fn plane_vertex_buffer(width: usize, height: usize, scale: f32) -> Vec<f32> 
 }
 
 pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, height: usize, scale: f32, generator: F) -> Vec<f32> {
-	let floats_per_vertex = 14;
+	let floats_per_vertex = 15;
 	let mut vertex_buffer = vec![0.0; width * height * floats_per_vertex];
 	let mut face_normals = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
 	let mut face_tangents = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
@@ -268,13 +268,14 @@ pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, heigh
 			vertex_buffer[vertex_offset + 3] = 1.0;
 			vertex_buffer[vertex_offset + 4] = 0.0;
 			vertex_buffer[vertex_offset + 5] = 0.0;
+			vertex_buffer[vertex_offset + 6] = 1.0;
 
-			vertex_buffer[vertex_offset + 6] = 0.0;
-			vertex_buffer[vertex_offset + 7] = 1.0;
-			vertex_buffer[vertex_offset + 8] = 0.0;
+			vertex_buffer[vertex_offset + 7] = 0.0;
+			vertex_buffer[vertex_offset + 8] = 1.0;
+			vertex_buffer[vertex_offset + 9] = 0.0;
 			
-			vertex_buffer[vertex_offset + 12] = xuv * scale;
-			vertex_buffer[vertex_offset + 13] = yuv * scale;
+			vertex_buffer[vertex_offset + 13] = xuv * scale;
+			vertex_buffer[vertex_offset + 14] = yuv * scale;
 
 		}
 	}
@@ -342,9 +343,9 @@ pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, heigh
 			face_normals[square_index * 2] = face_normal;
 
 			//Now computing tangent and bitangent
-			let (u0, v0) = (vertex_buffer[i0 + 12], vertex_buffer[i0 + 13]);
-			let (u1, v1) = (vertex_buffer[i1 + 12], vertex_buffer[i1 + 13]);
-			let (u2, v2) = (vertex_buffer[i2 + 12], vertex_buffer[i2 + 13]);
+			let (u0, v0) = (vertex_buffer[i0 + 13], vertex_buffer[i0 + 14]);
+			let (u1, v1) = (vertex_buffer[i1 + 13], vertex_buffer[i1 + 14]);
+			let (u2, v2) = (vertex_buffer[i2 + 13], vertex_buffer[i2 + 14]);
 			let q1 = p1 - p0;
 			let q2 = p2 - p0;
 			let (s1, t1) = (u1 - u0, v1 - v0);
@@ -368,9 +369,9 @@ pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, heigh
 			face_normals[square_index * 2 + 1] = face_normal;
 
 			//Now computing tangent and bitangent
-			let (u0, v0) = (vertex_buffer[i1 + 12], vertex_buffer[i1 + 13]);
-			let (u1, v1) = (vertex_buffer[i2 + 12], vertex_buffer[i2 + 13]);
-			let (u2, v2) = (vertex_buffer[i3 + 12], vertex_buffer[i3 + 13]);
+			let (u0, v0) = (vertex_buffer[i1 + 13], vertex_buffer[i1 + 14]);
+			let (u1, v1) = (vertex_buffer[i2 + 13], vertex_buffer[i2 + 14]);
+			let (u2, v2) = (vertex_buffer[i3 + 13], vertex_buffer[i3 + 14]);
 			let q1 = p1 - p0;
 			let q2 = p2 - p0;
 			let (s1, t1) = (u1 - u0, v1 - v0);
@@ -411,13 +412,13 @@ pub fn perturbed_plane_vertex_buffer<F: Fn(f64, f64) -> f64>(width: usize, heigh
 		vertex_buffer[i + 4] = averaged_tangent.y;
 		vertex_buffer[i + 5] = averaged_tangent.z;
 
-		vertex_buffer[i + 6] = averaged_bitangent.x;
-		vertex_buffer[i + 7] = averaged_bitangent.y;
-		vertex_buffer[i + 8] = averaged_bitangent.z;
+		vertex_buffer[i + 7] = averaged_bitangent.x;
+		vertex_buffer[i + 8] = averaged_bitangent.y;
+		vertex_buffer[i + 9] = averaged_bitangent.z;
 
-		vertex_buffer[i + 9] = averaged_normal.x;
-		vertex_buffer[i + 10] = averaged_normal.y;
-		vertex_buffer[i + 11] = averaged_normal.z;
+		vertex_buffer[i + 10] = averaged_normal.x;
+		vertex_buffer[i + 11] = averaged_normal.y;
+		vertex_buffer[i + 12] = averaged_normal.z;
 	}
 
 	vertex_buffer
