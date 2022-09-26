@@ -1,7 +1,7 @@
 
 use std::{collections::HashMap};
 
-use crate::glutil;
+use crate::{glutil, structs::UninterleavedVertexArrays};
 
 pub fn sphere_index_count(segments: usize, rings: usize) -> usize {	
 	6 * (segments * (rings - 2) + segments)
@@ -240,9 +240,13 @@ pub fn plane_vertex_buffer(width: usize, height: usize, scale: f32) -> Vec<f32> 
 	vertex_buffer
 }
 
-pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: usize, height: usize, scale: f32, generator: HeightMapper) -> Vec<f32> {
-	let floats_per_vertex = 15;
-	let mut vertex_buffer = vec![0.0; width * height * floats_per_vertex];
+pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: usize, height: usize, scale: f32, generator: HeightMapper) -> UninterleavedVertexArrays {
+	//let floats_per_vertex = 15;
+	let mut vertex_positions = vec![0.0; width * height * 4];
+	let mut vertex_normals = vec![0.0; width * height * 4];
+	let mut vertex_tangents = vec![0.0; width * height * 4];
+	let mut vertex_uvs = vec![0.0; width * height * 2];
+
 	let mut face_normals = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
 	let mut face_tangents = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
 	let mut face_bitangents = vec![glm::zero(); 2 * (width - 1) * (height - 1)];
@@ -251,23 +255,25 @@ pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: u
 	for j in 0..height {
 		let ypos = j as f32 * 2.0 / (height - 1) as f32 - 1.0;
 		let yuv = j as f32 / (height - 1) as f32;
-		let row_index = j * width * floats_per_vertex;
+		let row_index = j * width;
 		for i in 0..width {
 			let xpos = i as f32 * 2.0 / (width - 1) as f32 - 1.0;
 			let xuv = i as f32 / (width - 1) as f32;
 
-			let vertex_offset = row_index + i * floats_per_vertex;
+			let vertex_offset = row_index + i;
+			let pos_offset = 4 * vertex_offset;
+			let uv_offset = 2 * vertex_offset;
 
 			let x = xpos * scale;
 			let y = ypos * scale;
 			let z = generator(x as f64, y as f64) as f32;
-			vertex_buffer[vertex_offset] =     x * scale;
-			vertex_buffer[vertex_offset + 1] = y * scale;
-			vertex_buffer[vertex_offset + 2] = z * scale;
+			vertex_positions[pos_offset] =     x * scale;
+			vertex_positions[pos_offset + 1] = y * scale;
+			vertex_positions[pos_offset + 2] = z * scale;
+			vertex_positions[pos_offset + 3] = 1.0;
 			
-			vertex_buffer[vertex_offset + 13] = xuv * scale;
-			vertex_buffer[vertex_offset + 14] = yuv * scale;
-
+			vertex_uvs[uv_offset] = xuv * scale;
+			vertex_uvs[uv_offset + 1] = yuv * scale;
 		}
 	}
 	
@@ -316,16 +322,10 @@ pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: u
 				None => { vertex_face_map.insert(i3 as u32, vec![tri_id]); }
 			}
 
-			//Get the four indices of this square's vertices
-			let i0 = i0 * floats_per_vertex;
-			let i1 = i1 * floats_per_vertex;
-			let i2 = i2 * floats_per_vertex;
-			let i3 = i3 * floats_per_vertex;
-
 			//First tri
-			let p0 = glm::vec3(vertex_buffer[i0], vertex_buffer[i0 + 1], vertex_buffer[i0 + 2]);
-			let p1 = glm::vec3(vertex_buffer[i1], vertex_buffer[i1 + 1], vertex_buffer[i1 + 2]);
-			let p2 = glm::vec3(vertex_buffer[i2], vertex_buffer[i2 + 1], vertex_buffer[i2 + 2]);
+			let p0 = glm::vec3(vertex_positions[4 * i0], vertex_positions[4 * i0 + 1], vertex_positions[4 * i0 + 2]);
+			let p1 = glm::vec3(vertex_positions[4 * i1], vertex_positions[4 * i1 + 1], vertex_positions[4 * i1 + 2]);
+			let p2 = glm::vec3(vertex_positions[4 * i2], vertex_positions[4 * i2 + 1], vertex_positions[4 * i2 + 2]);
 
 			//Compute normal
 			let e1 = p1 - p0;
@@ -334,9 +334,9 @@ pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: u
 			face_normals[square_index * 2] = face_normal;
 
 			//Now computing tangent and bitangent
-			let (u0, v0) = (vertex_buffer[i0 + 13], vertex_buffer[i0 + 14]);
-			let (u1, v1) = (vertex_buffer[i1 + 13], vertex_buffer[i1 + 14]);
-			let (u2, v2) = (vertex_buffer[i2 + 13], vertex_buffer[i2 + 14]);
+			let (u0, v0) = (vertex_uvs[2 * i0], vertex_uvs[2 * i0 + 1]);
+			let (u1, v1) = (vertex_uvs[2 * i1], vertex_uvs[2 * i1 + 1]);
+			let (u2, v2) = (vertex_uvs[2 * i2], vertex_uvs[2 * i2 + 1]);
 			let q1 = p1 - p0;
 			let q2 = p2 - p0;
 			let (s1, t1) = (u1 - u0, v1 - v0);
@@ -349,9 +349,9 @@ pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: u
 			face_bitangents[square_index * 2] = face_bitangent;
 
 			//Second tri
-			let p0 = glm::vec3(vertex_buffer[i1], vertex_buffer[i1 + 1], vertex_buffer[i1 + 2]);
-			let p1 = glm::vec3(vertex_buffer[i2], vertex_buffer[i2 + 1], vertex_buffer[i2 + 2]);
-			let p2 = glm::vec3(vertex_buffer[i3], vertex_buffer[i3 + 1], vertex_buffer[i3 + 2]);
+			let p0 = glm::vec3(vertex_positions[4 * i1], vertex_positions[4 * i1 + 1], vertex_positions[4 * i1 + 2]);
+			let p1 = glm::vec3(vertex_positions[4 * i2], vertex_positions[4 * i2 + 1], vertex_positions[4 * i2 + 2]);
+			let p2 = glm::vec3(vertex_positions[4 * i3], vertex_positions[4 * i3 + 1], vertex_positions[4 * i3 + 2]);
 
 			//Compute normal
 			let e1 = p1 - p0;
@@ -360,9 +360,9 @@ pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: u
 			face_normals[square_index * 2 + 1] = face_normal;
 
 			//Now computing tangent and bitangent
-			let (u0, v0) = (vertex_buffer[i1 + 13], vertex_buffer[i1 + 14]);
-			let (u1, v1) = (vertex_buffer[i2 + 13], vertex_buffer[i2 + 14]);
-			let (u2, v2) = (vertex_buffer[i3 + 13], vertex_buffer[i3 + 14]);
+			let (u0, v0) = (vertex_positions[2 * i1], vertex_positions[2 * i1 + 1]);
+			let (u1, v1) = (vertex_positions[2 * i2], vertex_positions[2 * i2 + 1]);
+			let (u2, v2) = (vertex_positions[2 * i3], vertex_positions[2 * i3 + 1]);
 			let q1 = p1 - p0;
 			let q2 = p2 - p0;
 			let (s1, t1) = (u1 - u0, v1 - v0);
@@ -377,8 +377,9 @@ pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: u
 	}
 
 	//Averaging per-face data into vertex data
-	for i in (0..vertex_buffer.len()).step_by(floats_per_vertex) {
-		let vert_id = i as u32 / floats_per_vertex as u32;
+	//for i in (0..vertex_buffer.len()).step_by(floats_per_vertex) {
+	for i in 0..(vertex_positions.len() / 4) {
+		let vert_id = i as u32;
 		let vert_faces = vertex_face_map.get(&vert_id).unwrap();
 
 		let mut averaged_tangent: glm::TVec3<f32> = glm::zero();
@@ -387,33 +388,29 @@ pub fn perturbed_plane_vertex_buffer<HeightMapper: Fn(f64, f64) -> f64>(width: u
 		}
 		averaged_tangent = glm::normalize(&averaged_tangent);
 
-		let mut averaged_bitangent: glm::TVec3<f32> = glm::zero();
-		for &face_id in vert_faces {
-			averaged_bitangent += face_bitangents[face_id as usize];
-		}
-		averaged_bitangent = glm::normalize(&averaged_bitangent);
-
 		let mut averaged_normal: glm::TVec3<f32> = glm::zero();
 		for &face_id in vert_faces {
 			averaged_normal += face_normals[face_id as usize];
 		}
 		averaged_normal = glm::normalize(&averaged_normal);
 
-		vertex_buffer[i + 3] = averaged_tangent.x;
-		vertex_buffer[i + 4] = averaged_tangent.y;
-		vertex_buffer[i + 5] = averaged_tangent.z;
-		vertex_buffer[i + 6] = 1.0;
+		vertex_tangents[4 * i] = averaged_tangent.x;
+		vertex_tangents[4 * i + 1] = averaged_tangent.y;
+		vertex_tangents[4 * i + 2] = averaged_tangent.z;
+		vertex_tangents[4 * i + 3] = 1.0;
 
-		vertex_buffer[i + 7] = averaged_bitangent.x;
-		vertex_buffer[i + 8] = averaged_bitangent.y;
-		vertex_buffer[i + 9] = averaged_bitangent.z;
-
-		vertex_buffer[i + 10] = averaged_normal.x;
-		vertex_buffer[i + 11] = averaged_normal.y;
-		vertex_buffer[i + 12] = averaged_normal.z;
+		vertex_normals[4 * i] = averaged_normal.x;
+		vertex_normals[4 * i + 1] = averaged_normal.y;
+		vertex_normals[4 * i + 2] = averaged_normal.z;
+		vertex_normals[4 * i + 3] = 0.0;
 	}
 
-	vertex_buffer
+	UninterleavedVertexArrays {
+		positions: vertex_positions,
+		normals: vertex_normals,
+		tangents: vertex_tangents,
+		uvs: vertex_uvs
+	}
 }
 
 pub fn plane_vao(vertices_width: usize) -> glutil::VertexArrayNames {

@@ -38,6 +38,13 @@ pub struct VertexArray {
 	pub attribute_offsets: Vec<i32>
 }
 
+pub struct UninterleavedVertexArrays {
+    pub positions: Vec<f32>,
+    pub tangents: Vec<f32>,
+    pub normals: Vec<f32>,
+    pub uvs: Vec<f32>,
+}
+
 pub struct ImageData {
 	pub data: Vec<u8>,
 	pub width: i32,

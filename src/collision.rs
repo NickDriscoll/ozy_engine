@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::Read;
 use crate::io;
-use crate::clamp;
 
 #[derive(Clone, Debug)]
 pub struct LineSegment {
@@ -312,7 +311,7 @@ pub fn get_terrain_triangle(terrain: &MeshCollision, triangle_index: usize) -> T
 pub fn closest_point_on_line_segment(point: &glm::TVec3<f32>, a: &glm::TVec3<f32>, b: &glm::TVec3<f32>) -> glm::TVec3<f32> {    
     let ab = b - a;
     let t = glm::dot(&(point - a), &ab) / glm::dot(&ab, &ab);
-    a + clamp(t, 0.0, 1.0) * ab
+    a + f32::clamp(t, 0.0, 1.0) * ab
 }
 
 //Given a point in a triangle's plane, returns the closest point on the triangle to said point and the distance
