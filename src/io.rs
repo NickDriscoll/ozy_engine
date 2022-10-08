@@ -40,6 +40,46 @@ impl DDS_PixelFormat {
     pub const DDPF_RGB: u32 = 0x1;
     pub const DDPF_YUV: u32 = 0x2;
     pub const DDPF_LUMINANCE: u32 = 0x4;
+
+    pub fn from_header_bytes(header_bytes: &[u8]) -> Self {
+        let start = 19 * size_of::<u32>();
+        let mut current_offset = 0;
+
+        let size = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let flags = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let four_cc = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let rgb_bitcount = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let r_bitmask = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let g_bitmask = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let b_bitmask = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let a_bitmask = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        
+
+        DDS_PixelFormat {
+            size,
+            flags,
+            four_cc,
+            rgb_bitcount,
+            r_bitmask,
+            g_bitmask,
+            b_bitmask,
+            a_bitmask
+        }
+    }
 }
 
 impl Default for DDS_PixelFormat {
@@ -123,12 +163,17 @@ impl DDSHeader {
         let width = read_u32_from_le_bytes(&header_buffer, 16);
         let pitch_or_linear_size = read_u32_from_le_bytes(&header_buffer, 20);
         let mipmap_count = read_u32_from_le_bytes(&header_buffer, 28);
+        let pixel_format = DDS_PixelFormat::from_header_bytes(&header_buffer);
+
+        let dx10_header = DDSHeader_DXT10::from_header_bytes(&header_buffer);
 
         DDSHeader {
             height,
             width,
             pitch_or_linear_size,
             mipmap_count,
+            spf: pixel_format,
+            dx10_header,
             ..Default::default()
         }
     }
@@ -182,6 +227,37 @@ pub struct DDSHeader_DXT10 {
     pub misc_flags2: u32
 }
 
+impl DDSHeader_DXT10 {
+    pub fn from_header_bytes(header_bytes: &[u8]) -> Self {
+        let start = size_of::<DDSHeader>() - size_of::<DDSHeader_DXT10>();
+        let mut current_offset = 0;
+
+        let dxgi_format = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        let dxgi_format = unsafe { std::mem::transmute(dxgi_format) };
+        current_offset += size_of::<u32>();
+
+        let resource_dimension = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        let resource_dimension = unsafe { std::mem::transmute(resource_dimension) };
+        current_offset += size_of::<u32>();
+
+        let misc_flag = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let array_size = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        current_offset += size_of::<u32>();
+
+        let misc_flags2 = read_u32_from_le_bytes(header_bytes, start + current_offset);
+        
+        DDSHeader_DXT10 {
+            dxgi_format,
+            resource_dimension,
+            misc_flag,
+            array_size,
+            misc_flags2
+        }
+    }
+}
+
 impl Default for DDSHeader_DXT10 {
     fn default() -> Self {
         DDSHeader_DXT10 {
@@ -204,7 +280,9 @@ pub enum D3D10_RESOURCE_DIMENSION {
     BUFFER = 1,
     TEXTURE1D = 2,
     TEXTURE2D = 3,
-    TEXTURE3D = 4
+    TEXTURE3D = 4,
+
+    _RESERVED = 0xFFFFFFFF
 }
 
 #[derive(Debug)]
