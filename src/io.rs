@@ -421,8 +421,36 @@ pub enum IndexType {
     BIT32
 }
 
-#[derive(Debug)]
+pub struct OzyMaterial {
+    pub base_color: [f32; 4],
+    pub emissive_factor: [f32; 3],
+    pub base_roughness: f32,
+    pub color_bc7_bytes: Option<Vec<u8>>,
+    pub normal_bc7_bytes: Option<Vec<u8>>,
+    pub arm_bc7_bytes: Option<Vec<u8>>,          //arm == ambient(R), roughness(G), metallic(B)
+    pub emissive_bc7_bytes: Option<Vec<u8>>,
+}
+
+pub struct OzyPrimitive {
+    pub indices: Vec<u32>,
+    pub vertex_positions: Vec<f32>,
+    pub vertex_normals: Vec<f32>,
+    pub vertex_tangents: Vec<f32>,
+    pub vertex_uvs: Vec<f32>,
+    pub material_idx: u32
+}
+
 pub struct OzyMesh {
+    pub materials: Vec<OzyMaterial>,
+    pub primitives: Vec<OzyPrimitive>
+}
+
+pub struct OzyMeshHeader {
+
+}
+
+#[derive(Debug)]
+pub struct OzyMeshOBSOLETE {
 	pub vertex_array: VertexArray,
 	pub texture_name: String,
     pub uv_velocity: [f32; 2],
@@ -430,7 +458,7 @@ pub struct OzyMesh {
     pub is_transparent: bool
 }
 
-impl OzyMesh {
+impl OzyMeshOBSOLETE {
     pub fn load(path: &str) -> Option<Self> {
         let mut texture_name = String::new();
         let mut colors = vec![];
@@ -528,7 +556,7 @@ impl OzyMesh {
             attribute_offsets: vec![3, 3, 3, 3, 2]
         };
     
-        Some(OzyMesh {
+        Some(OzyMeshOBSOLETE {
             vertex_array,
             texture_name,
             uv_velocity,
@@ -633,7 +661,7 @@ impl OzyMesh {
             attribute_offsets: vec![3, 3, 3, 3, 2]
         };
     
-        Some(OzyMesh {
+        Some(OzyMeshOBSOLETE {
             vertex_array,
             texture_name,
             uv_velocity,
