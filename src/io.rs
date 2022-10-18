@@ -425,10 +425,10 @@ pub struct OzyMaterial {
     pub base_color: [f32; 4],
     pub emissive_factor: [f32; 3],
     pub base_roughness: f32,
-    pub color_bc7_bytes: Option<Vec<u8>>,
-    pub normal_bc7_bytes: Option<Vec<u8>>,
-    pub arm_bc7_bytes: Option<Vec<u8>>,          //arm == ambient(R), roughness(G), metallic(B)
-    pub emissive_bc7_bytes: Option<Vec<u8>>,
+    pub color_bc7_idx: Option<u32>,
+    pub normal_bc7_idx: Option<u32>,
+    pub arm_bc7_idx: Option<u32>,          //arm == ambient(R), roughness(G), metallic(B)
+    pub emissive_bc7_idx: Option<u32>,
 }
 
 pub struct OzyPrimitive {
