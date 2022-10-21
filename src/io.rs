@@ -431,6 +431,13 @@ pub struct OzyMaterial {
     pub emissive_bc7_idx: Option<u32>,
 }
 
+#[derive(Clone, Default)]
+pub struct OzyImage {
+    pub width: u32,
+    pub height: u32,
+    pub bc7_bytes: Vec<u8>
+}
+
 pub struct OzyPrimitive {
     pub indices: Vec<u32>,
     pub vertex_positions: Vec<f32>,
