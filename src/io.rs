@@ -448,12 +448,93 @@ pub struct OzyPrimitive {
 }
 
 pub struct OzyMesh {
+    pub textures: Vec<OzyImage>,
     pub materials: Vec<OzyMaterial>,
     pub primitives: Vec<OzyPrimitive>
 }
 
-pub struct OzyMeshHeader {
+impl OzyMesh {
+    pub fn from_file(path: &str) -> Self {
+        let mut file = File::open(path).unwrap();
+        
+        //Read header
+        let material_count = read_u32(&mut file).unwrap();
+        let primitive_count = read_u32(&mut file).unwrap();
+        let texture_count = read_u32(&mut file).unwrap();
 
+        let mut materials = Vec::with_capacity(material_count as usize);
+        let mut primitives = Vec::with_capacity(primitive_count as usize);
+        let mut textures = Vec::with_capacity(texture_count as usize);
+
+        for i in 0..material_count {
+            let base_color = {
+                let b = read_f32_data(&mut file, 4).unwrap();
+                let mut o = [0.0; 4];
+                for j in 0..4 {
+                    o[j] = b[j];
+                }
+                o
+            };
+            let emissive_factor = {
+                let b = read_f32_data(&mut file, 3).unwrap();
+                let mut o = [0.0; 3];
+                for j in 0..3 {
+                    o[j] = b[j];
+                }
+                o
+            };
+            let base_roughness = read_f32(&mut file).unwrap();
+
+            let idx = read_u32(&mut file).unwrap();
+            let color_bc7_idx = if idx == 0xFFFFFFFF {
+                None
+            } else {
+                Some(idx)
+            };
+
+            let idx = read_u32(&mut file).unwrap();
+            let normal_bc7_idx = if idx == 0xFFFFFFFF {
+                None
+            } else {
+                Some(idx)
+            };
+
+            let idx = read_u32(&mut file).unwrap();
+            let arm_bc7_idx = if idx == 0xFFFFFFFF {
+                None
+            } else {
+                Some(idx)
+            };
+
+            let idx = read_u32(&mut file).unwrap();
+            let emissive_bc7_idx = if idx == 0xFFFFFFFF {
+                None
+            } else {
+                Some(idx)
+            };
+
+            let mat = OzyMaterial {
+                base_color,
+                emissive_factor,
+                base_roughness,
+                color_bc7_idx,
+                normal_bc7_idx,
+                arm_bc7_idx,
+                emissive_bc7_idx
+            };
+            materials.push(mat);
+        }
+
+        for i in 0..primitive_count {
+
+        }
+
+        OzyMesh {
+            materials,
+            primitives,
+            textures
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -733,6 +814,14 @@ pub fn read_u16_data(file: &mut File, count: usize) -> Result<Vec<u16>, Error> {
 		v.push(u16::from_le_bytes(b));
 	}
 	Ok(v)
+}
+
+pub fn read_f32(file: &mut File) -> Result<f32, Error> {
+    let mut bytes = [0u8; 4];
+	match file.read_exact(&mut bytes) {
+		Ok(_) => { Ok(f32::from_le_bytes(bytes)) }
+		Err(e) => { Err(e) }
+	}
 }
 
 pub fn read_f32_data(file: &mut File, count: usize) -> Result<Vec<f32>, Error> {
