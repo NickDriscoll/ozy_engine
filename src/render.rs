@@ -23,6 +23,13 @@ pub fn clip_from_screen(screen_size: glm::TVec2<u32>) -> glm::TMat4<f32> {
 	)
 }
 
+pub trait PositionNormalTangentUvPrimitive {
+    fn vertex_positions(&self) -> &[f32];
+    fn vertex_normals(&self) -> &[f32];
+    fn vertex_tangents(&self) -> &[f32];
+    fn vertex_uvs(&self) -> &[f32];
+}
+
 pub struct ScreenState {
     window_size: glm::TVec2<u32>,
 	default_framebuffer: Framebuffer,

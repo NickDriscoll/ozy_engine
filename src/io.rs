@@ -2,8 +2,9 @@
 use std::mem::{self, size_of};
 use std::fs::File;
 use std::io::{Error, Read, Write};
+use std::path::Path;
 use std::string::String;
-use crate::structs::*;
+use crate::{structs::*, routines, render::PositionNormalTangentUvPrimitive};
 
 //DDS Programming Guide
 //https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dx-graphics-dds-pguide
@@ -435,6 +436,7 @@ pub struct OzyMaterial {
 pub struct OzyImage {
     pub width: u32,
     pub height: u32,
+    pub mipmap_count: u32,
     pub bc7_bytes: Vec<u8>
 }
 
@@ -447,7 +449,26 @@ pub struct OzyPrimitive {
     pub material_idx: u32
 }
 
+impl PositionNormalTangentUvPrimitive for OzyPrimitive {
+    fn vertex_positions(&self) -> &[f32] {
+        &self.vertex_positions
+    }
+
+    fn vertex_normals(&self) -> &[f32] {
+        &self.vertex_normals
+    }
+
+    fn vertex_tangents(&self) -> &[f32] {
+        &self.vertex_tangents
+    }
+
+    fn vertex_uvs(&self) -> &[f32] {
+        &self.vertex_uvs
+    }
+}
+
 pub struct OzyMesh {
+    pub name: String,
     pub textures: Vec<OzyImage>,
     pub materials: Vec<OzyMaterial>,
     pub primitives: Vec<OzyPrimitive>
@@ -455,6 +476,8 @@ pub struct OzyMesh {
 
 impl OzyMesh {
     pub fn from_file(path: &str) -> Self {
+        let name = String::from(Path::new(&path).file_stem().unwrap().to_str().unwrap());
+
         let mut file = File::open(path).unwrap();
         
         //Read header
@@ -466,7 +489,7 @@ impl OzyMesh {
         let mut primitives = Vec::with_capacity(primitive_count as usize);
         let mut textures = Vec::with_capacity(texture_count as usize);
 
-        for i in 0..material_count {
+        for _ in 0..material_count {
             let base_color = {
                 let b = read_f32_data(&mut file, 4).unwrap();
                 let mut o = [0.0; 4];
@@ -525,11 +548,48 @@ impl OzyMesh {
             materials.push(mat);
         }
 
-        for i in 0..primitive_count {
+        for _ in 0..primitive_count {
+            let material_idx = read_u32(&mut file).unwrap();
+            let indices = read_u32_array(&mut file).unwrap();
+            let vertex_positions = read_f32_array(&mut file).unwrap();
+            let vertex_normals = read_f32_array(&mut file).unwrap();
+            let vertex_tangents = read_f32_array(&mut file).unwrap();
+            let vertex_uvs = read_f32_array(&mut file).unwrap();
 
+            let prim = OzyPrimitive {
+                material_idx,
+                indices,
+                vertex_positions,
+                vertex_normals,
+                vertex_tangents,
+                vertex_uvs
+            };
+            primitives.push(prim);
+        }
+
+        for _ in 0..texture_count {
+            let width = read_u32(&mut file).unwrap();
+            let height = read_u32(&mut file).unwrap();
+            let mipmap_count = routines::calculate_miplevels(width, height);
+            
+            let mut bc7_byte_count = 0;
+            for i in 0..mipmap_count {
+                let (w, h) = routines::mip_resolution(width, height, i);
+                bc7_byte_count += ispc::bc7::calc_output_size(w, h);
+            }
+            let bc7_bytes = read_u8_data(&mut file, bc7_byte_count).unwrap();
+
+            let image = OzyImage {
+                width,
+                height,
+                mipmap_count,
+                bc7_bytes
+            };
+            textures.push(image);
         }
 
         OzyMesh {
+            name,
             materials,
             primitives,
             textures
@@ -802,6 +862,11 @@ pub fn read_u32_data(file: &mut File, count: usize) -> Result<Vec<u32>, Error> {
 	Ok(v)
 }
 
+pub fn read_u32_array(file: &mut File) -> Result<Vec<u32>, Error> {
+    let count = read_u32(file).unwrap();
+    read_u32_data(file, count as usize)
+}
+
 pub fn read_u16_data(file: &mut File, count: usize) -> Result<Vec<u16>, Error> {
 	let mut bytes = vec![0; count * mem::size_of::<u16>()];
 	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
@@ -836,6 +901,11 @@ pub fn read_f32_data(file: &mut File, count: usize) -> Result<Vec<f32>, Error> {
 		v.push(f32::from_le_bytes(b));
 	}
 	Ok(v)    
+}
+
+pub fn read_f32_array(file: &mut File) -> Result<Vec<f32>, Error> {
+    let count = read_u32(file).unwrap();
+    read_f32_data(file, count as usize)
 }
 
 pub fn read_pascal_strings(file: &mut File, count: usize) -> Result<Vec<String>, Error> {	

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 extern crate nalgebra_glm as glm;
+extern crate ispc_texcomp as ispc;
 
 pub mod collision;
 pub mod io;
