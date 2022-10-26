@@ -418,10 +418,11 @@ pub fn compute_pitch_bc(width: u32, block_size: u32) -> u32 {
 }
 
 pub enum IndexType {
-    BIT16,
-    BIT32
+    U16,
+    U32
 }
 
+#[derive(Clone)]
 pub struct OzyMaterial {
     pub base_color: [f32; 4],
     pub emissive_factor: [f32; 3],
@@ -430,6 +431,20 @@ pub struct OzyMaterial {
     pub normal_bc7_idx: Option<u32>,
     pub arm_bc7_idx: Option<u32>,          //arm == ambient(R), roughness(G), metallic(B)
     pub emissive_bc7_idx: Option<u32>,
+}
+
+impl Default for OzyMaterial {
+    fn default() -> Self {
+        OzyMaterial {
+            base_color: [69.0; 4],
+            emissive_factor: [0.0; 3],
+            base_roughness: 0.0,
+            color_bc7_idx: None,
+            normal_bc7_idx: None,
+            arm_bc7_idx: None,
+            emissive_bc7_idx: None
+        }
+    }
 }
 
 #[derive(Clone, Default)]
