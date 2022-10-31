@@ -128,6 +128,10 @@ impl<T> OptionVec<T> {
 
 	pub fn count(&self) -> usize { self.count }
 
+	pub fn get_element(&mut self, index: usize) -> Option<&T> {
+		self.optionvec[index].as_ref()
+	}
+
 	pub fn get_mut_element(&mut self, index: usize) -> Option<&mut T> {
 		self.optionvec[index].as_mut()
 	}
