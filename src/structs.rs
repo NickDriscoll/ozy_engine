@@ -112,11 +112,13 @@ impl<T> OptionVec<T> {
 		}
 	} 
 
-	pub fn delete(&mut self, index: usize) {
+	pub fn delete(&mut self, index: usize) -> Option<T> {
+		let mut res = None;
 		if let Some(_) = self.optionvec[index] {
 			self.count -= 1;
-			self.optionvec[index] = None;
+			std::mem::swap(&mut res, self.optionvec.get_mut(index).unwrap());
 		}
+		res
 	}
 
 	pub fn clear(&mut self) {
