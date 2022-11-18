@@ -1,6 +1,6 @@
 
 #[inline]
-pub fn calculate_miplevels(width: u32, height: u32) -> u32 {
+pub fn calculate_mipcount(width: u32, height: u32) -> u32 {
     (f32::floor(f32::log2(u32::max(width, height) as f32))) as u32 + 1
 }
 

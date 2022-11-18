@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 use std::mem::{self, size_of};
 use std::fs::File;
-use std::io::{Error, Read, Write};
+use std::io::{Error, Read, Result, Write};
 use std::path::Path;
 use std::string::String;
 use crate::{structs::*, routines, render::PositionNormalTangentUvPrimitive};
@@ -585,7 +585,8 @@ impl OzyMesh {
         for _ in 0..texture_count {
             let width = read_u32(&mut file).unwrap();
             let height = read_u32(&mut file).unwrap();
-            let mipmap_count = routines::calculate_miplevels(width, height);
+            //let mipmap_count = routines::calculate_miplevels(width, height);
+            let mipmap_count = read_u32(&mut file).unwrap();
             
             let mut bc7_byte_count = 0;
             for i in 0..mipmap_count {
@@ -839,7 +840,7 @@ pub fn read_u32_from_le_bytes(bytes: &[u8], offset: usize) -> u32 {
     u32::from_le_bytes([bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]])
 }
 
-pub fn read_u8(file: &mut File) -> Result<u8, Error> {
+pub fn read_u8(file: &mut File) -> Result<u8> {
     let mut n = [0];
     match file.read_exact(&mut n) {
         Ok(_) => { Ok(u8::from_le_bytes(n)) }
@@ -847,7 +848,7 @@ pub fn read_u8(file: &mut File) -> Result<u8, Error> {
     }    
 }
 
-pub fn read_u8_data(file: &mut File, count: usize) -> Result<Vec<u8>, Error> {
+pub fn read_u8_data(file: &mut File, count: usize) -> Result<Vec<u8>> {
     let mut bytes = vec![0; count];
     if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
         return Err(e);
@@ -855,7 +856,7 @@ pub fn read_u8_data(file: &mut File, count: usize) -> Result<Vec<u8>, Error> {
 	Ok(bytes)
 }
 
-pub fn read_u32(file: &mut File) -> Result<u32, Error> {
+pub fn read_u32(file: &mut File) -> Result<u32> {
 	let mut buffer = [0; 4];
 	match file.read_exact(&mut buffer) {
 		Ok(_) => { Ok(u32::from_le_bytes(buffer)) }
@@ -863,7 +864,7 @@ pub fn read_u32(file: &mut File) -> Result<u32, Error> {
 	}
 }
 
-pub fn read_u32_data(file: &mut File, count: usize) -> Result<Vec<u32>, Error> {
+pub fn read_u32_data(file: &mut File, count: usize) -> Result<Vec<u32>> {
 	let mut bytes = vec![0; count * mem::size_of::<u32>()];
 	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
         return Err(e);
@@ -877,12 +878,12 @@ pub fn read_u32_data(file: &mut File, count: usize) -> Result<Vec<u32>, Error> {
 	Ok(v)
 }
 
-pub fn read_u32_array(file: &mut File) -> Result<Vec<u32>, Error> {
+pub fn read_u32_array(file: &mut File) -> Result<Vec<u32>> {
     let count = read_u32(file).unwrap();
     read_u32_data(file, count as usize)
 }
 
-pub fn read_u16_data(file: &mut File, count: usize) -> Result<Vec<u16>, Error> {
+pub fn read_u16_data(file: &mut File, count: usize) -> Result<Vec<u16>> {
 	let mut bytes = vec![0; count * mem::size_of::<u16>()];
 	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
         return Err(e);
@@ -896,7 +897,7 @@ pub fn read_u16_data(file: &mut File, count: usize) -> Result<Vec<u16>, Error> {
 	Ok(v)
 }
 
-pub fn read_f32(file: &mut File) -> Result<f32, Error> {
+pub fn read_f32(file: &mut File) -> Result<f32> {
     let mut bytes = [0u8; 4];
 	match file.read_exact(&mut bytes) {
 		Ok(_) => { Ok(f32::from_le_bytes(bytes)) }
@@ -904,7 +905,7 @@ pub fn read_f32(file: &mut File) -> Result<f32, Error> {
 	}
 }
 
-pub fn read_f32_data(file: &mut File, count: usize) -> Result<Vec<f32>, Error> {
+pub fn read_f32_data(file: &mut File, count: usize) -> Result<Vec<f32>> {
 	let mut bytes = vec![0; count * mem::size_of::<f32>()];
 	if let Err(e) = file.read_exact(bytes.as_mut_slice()) {
         return Err(e);
@@ -918,12 +919,12 @@ pub fn read_f32_data(file: &mut File, count: usize) -> Result<Vec<f32>, Error> {
 	Ok(v)    
 }
 
-pub fn read_f32_array(file: &mut File) -> Result<Vec<f32>, Error> {
+pub fn read_f32_array(file: &mut File) -> Result<Vec<f32>> {
     let count = read_u32(file).unwrap();
     read_f32_data(file, count as usize)
 }
 
-pub fn read_pascal_strings(file: &mut File, count: usize) -> Result<Vec<String>, Error> {	
+pub fn read_pascal_strings(file: &mut File, count: usize) -> Result<Vec<String>> {	
 	let mut int_buffer = [0; 4];
 	let mut strings = Vec::with_capacity(count as usize);
 	for _ in 0..count {
@@ -949,7 +950,7 @@ pub fn read_pascal_strings(file: &mut File, count: usize) -> Result<Vec<String>,
 	Ok(strings)
 }
 
-pub fn write_pascal_strings(file: &mut File, strs: &[&str]) -> std::io::Result<()> {
+pub fn write_pascal_strings(file: &mut File, strs: &[&str]) -> Result<()> {
     for i in 0..strs.len() {
         let s = strs[i];
         let l = s.len() as u32;
