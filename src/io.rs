@@ -427,6 +427,7 @@ pub struct OzyMaterial {
     pub base_color: [f32; 4],
     pub emissive_factor: [f32; 3],
     pub base_roughness: f32,
+    pub base_metalness: f32,
     pub color_bc7_idx: Option<u32>,
     pub normal_bc7_idx: Option<u32>,
     pub arm_bc7_idx: Option<u32>,          //arm == ambient(R), roughness(G), metallic(B)
@@ -439,6 +440,7 @@ impl Default for OzyMaterial {
             base_color: [69.0; 4],
             emissive_factor: [0.0; 3],
             base_roughness: 0.0,
+            base_metalness: 0.0,
             color_bc7_idx: None,
             normal_bc7_idx: None,
             arm_bc7_idx: None,
@@ -522,6 +524,7 @@ impl OzyMesh {
                 o
             };
             let base_roughness = read_f32(&mut file).unwrap();
+            let base_metalness = read_f32(&mut file).unwrap();
 
             let idx = read_u32(&mut file).unwrap();
             let color_bc7_idx = if idx == 0xFFFFFFFF {
@@ -555,6 +558,7 @@ impl OzyMesh {
                 base_color,
                 emissive_factor,
                 base_roughness,
+                base_metalness,
                 color_bc7_idx,
                 normal_bc7_idx,
                 arm_bc7_idx,
@@ -585,7 +589,6 @@ impl OzyMesh {
         for _ in 0..texture_count {
             let width = read_u32(&mut file).unwrap();
             let height = read_u32(&mut file).unwrap();
-            //let mipmap_count = routines::calculate_miplevels(width, height);
             let mipmap_count = read_u32(&mut file).unwrap();
             
             let mut bc7_byte_count = 0;
