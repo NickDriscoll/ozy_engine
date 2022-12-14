@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 use std::mem::{self, size_of};
 use std::fs::File;
-use std::io::{Error, Read, Result, Write};
+use std::io::{Read, Result, Write};
 use std::path::Path;
 use std::string::String;
 use crate::{structs::*, routines, render::PositionNormalTangentUvPrimitive};
