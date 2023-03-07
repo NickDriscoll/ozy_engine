@@ -422,6 +422,14 @@ pub enum IndexType {
     U32
 }
 
+pub struct UninterleavedVertexData {
+    pub indices: Vec<u32>,
+    pub positions: Vec<f32>,
+    pub normals: Vec<f32>,
+    pub tangents: Vec<f32>,
+    pub uvs: Vec<f32>
+}
+
 #[derive(Clone)]
 pub struct OzyMaterial {
     pub base_color: [f32; 4],
